@@ -8,7 +8,6 @@ export default function AdminSettings() {
   const [logoSaved, setLogoSaved] = useState(false);
   const fileRef = useRef(null);
 
-  // State للإعدادات
   const [platformName, setPlatformName] = useState("");
   const [description, setDescription] = useState("");
   const [logo, setLogo] = useState(null);
@@ -20,7 +19,6 @@ export default function AdminSettings() {
   const [maintenance, setMaintenance] = useState(false);
   const [maintMsg, setMaintMsg] = useState("");
 
-  // جلب الإعدادات من الباك إند
   const fetchSettings = async () => {
     try {
       const res = await api("/superadmin/platform-settings");
@@ -35,6 +33,7 @@ export default function AdminSettings() {
       setAllowCompany(settings.allowCompanySignup ?? true);
       setMaintenance(settings.maintenanceMode ?? false);
       setMaintMsg(settings.maintenanceMessage || "Platform is under maintenance. Please check back later.");
+      if (settings.platformLogo) localStorage.setItem("adminLogo", settings.platformLogo);
     } catch (err) {
       console.error(err);
     } finally {
@@ -46,7 +45,6 @@ export default function AdminSettings() {
     fetchSettings();
   }, []);
 
-  // حفظ الإعدادات
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -73,31 +71,28 @@ export default function AdminSettings() {
     }
   };
 
-  // رفع الشعار
   const handleLogoChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
     const formData = new FormData();
     formData.append("logo", file);
-    
     try {
       const res = await api("/superadmin/upload-logo", { method: "POST", body: formData });
       setLogo(res.logoUrl);
+      localStorage.setItem("adminLogo", res.logoUrl);
       setLogoSaved(true);
       setTimeout(() => setLogoSaved(false), 2000);
-      // تحديث الـ Layout
       window.dispatchEvent(new Event("adminLogoUpdated"));
     } catch (err) {
       console.error(err);
     }
   };
 
-  // حذف الشعار
   const handleRemoveLogo = async () => {
     try {
       await api("/superadmin/logo", { method: "DELETE" });
       setLogo(null);
+      localStorage.removeItem("adminLogo");
       window.dispatchEvent(new Event("adminLogoUpdated"));
     } catch (err) {
       console.error(err);
@@ -119,20 +114,16 @@ export default function AdminSettings() {
         <p className="au-sub">Configure global platform behavior</p>
       </div>
 
-      {/* Platform Identity */}
       <div className="as-card">
         <h2 className="as-section-title">🌐 Platform Identity</h2>
-
         <div className="as-field">
           <label>Platform Name</label>
           <input className="as-inp" value={platformName} onChange={e => setPlatformName(e.target.value)} />
         </div>
-
         <div className="as-field">
           <label>Platform Description</label>
           <textarea className="as-inp" rows={3} value={description} onChange={e => setDescription(e.target.value)} />
         </div>
-
         <div className="as-field">
           <label>Platform Logo</label>
           {logo ? (
@@ -140,11 +131,9 @@ export default function AdminSettings() {
               <img src={logo} alt="logo" className="as-logo-preview" />
               <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                 <button className="as-btn-outline" onClick={() => fileRef.current.click()}>↑ Change Logo</button>
-                <button className="as-btn-purple" onClick={handleLogoChange}>
-                  💾 {logoSaved ? "Saved!" : "Save Logo"}
-                </button>
                 <button className="as-btn-danger" onClick={handleRemoveLogo}>🗑 Remove Logo</button>
               </div>
+              {logoSaved && <div style={{ color: "#27ae60", fontSize: 13, marginTop: 8 }}>✓ Logo saved!</div>}
             </div>
           ) : (
             <div>
@@ -161,7 +150,6 @@ export default function AdminSettings() {
         </div>
       </div>
 
-      {/* Contact Information */}
       <div className="as-card">
         <h2 className="as-section-title">📞 Contact Information</h2>
         <div className="as-field">
@@ -178,7 +166,6 @@ export default function AdminSettings() {
         </div>
       </div>
 
-      {/* Registration Control */}
       <div className="as-card">
         <h2 className="as-section-title">🎓 Registration Control</h2>
         <div className="as-toggle-row">
@@ -197,7 +184,6 @@ export default function AdminSettings() {
         </div>
       </div>
 
-      {/* System */}
       <div className="as-card" style={{ background: "#fff8f0", borderColor: "#fed7aa" }}>
         <h2 className="as-section-title">⚠ System</h2>
         <div className="as-toggle-row">
@@ -208,16 +194,10 @@ export default function AdminSettings() {
           <Toggle value={maintenance} onChange={setMaintenance} />
         </div>
         <p className="as-warning">⚠ Enabling this will prevent all users except Super Admin from accessing the platform</p>
-
         {maintenance && (
           <div className="as-field" style={{ marginTop: 16 }}>
             <label>Maintenance Message</label>
-            <textarea
-              className="as-inp"
-              rows={3}
-              value={maintMsg}
-              onChange={e => setMaintMsg(e.target.value)}
-            />
+            <textarea className="as-inp" rows={3} value={maintMsg} onChange={e => setMaintMsg(e.target.value)} />
             <p className="as-hint">This message will be shown to all users during maintenance</p>
           </div>
         )}
