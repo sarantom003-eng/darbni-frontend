@@ -11,10 +11,10 @@ function AddSupervisorModal({ onClose, onAdd, universities }) {
 
   const validate = () => {
     const e = {};
-    if (!form.firstName.trim())  e.firstName  = "Required";
-    if (!form.lastName.trim())   e.lastName   = "Required";
-    if (!form.email.trim())      e.email      = "Required";
-    if (!form.password.trim())   e.password   = "Required";
+    if (!form.firstName.trim())  e.firstName = "Required";
+    if (!form.lastName.trim())   e.lastName = "Required";
+    if (!form.email.trim())      e.email = "Required";
+    if (!form.password.trim())   e.password = "Required";
     if (!form.universityId)      e.universityId = "Required";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -158,12 +158,14 @@ export default function AdminSupervisors() {
     }
   };
 
+  // تحميل البيانات بالترتيب الصحيح
   useEffect(() => {
-    fetchUniversities();
-  }, []);
-
-  useEffect(() => {
-    fetchSupervisors();
+    const loadData = async () => {
+      setLoading(true);
+      await fetchUniversities();
+      await fetchSupervisors();
+    };
+    loadData();
   }, [filterUniId]);
 
   const handleAdd = (newSupervisor) => {
@@ -171,7 +173,7 @@ export default function AdminSupervisors() {
     fetchSupervisors(); // إعادة تحميل القائمة
   };
 
-  // فلترة حسب البحث (الاسم أو الإيميل)
+  // ✅ فلترة حسب البحث (الاسم أو الإيميل)
   const filtered = supervisors.filter(s => {
     const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
     const matchSearch = fullName.includes(search.toLowerCase()) ||
@@ -179,9 +181,15 @@ export default function AdminSupervisors() {
     return matchSearch;
   });
 
-  const getUniversityName = (uniId) => {
-    const uni = universities.find(u => u._id === uniId);
-    return uni?.name || "";
+  // ✅ دالة جلب اسم الجامعة - تدعم الـ ID والـ Object
+  const getUniversityName = (uni) => {
+    // إذا كان uni كائن فيه name (من التوثيق الجديد)
+    if (uni && typeof uni === 'object' && uni.name) {
+      return uni.name;
+    }
+    // إذا كان uni هو ID فقط
+    const uniObj = universities.find(u => u._id === uni);
+    return uniObj?.name || "";
   };
 
   if (loading) return <div className="loading-state">Loading supervisors...</div>;
@@ -246,6 +254,7 @@ export default function AdminSupervisors() {
                 <tr key={s._id}>
                   <td style={{ fontWeight: 600 }}>{s.firstName} {s.lastName}</td>
                   <td style={{ color: "#888" }}>{s.userId?.email}</td>
+                  {/* ✅ استخدام الدالة التي تدعم الـ ID والـ Object */}
                   <td>{getUniversityName(s.universityId)}</td>
                   <td><span className="au-role-badge">{s.title || "Supervisor"}</span></td>
                   <td style={{ color: "#888" }}>{new Date(s.createdAt).toLocaleDateString()}</td>
