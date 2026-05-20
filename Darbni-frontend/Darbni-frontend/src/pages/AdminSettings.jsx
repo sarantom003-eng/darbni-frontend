@@ -1,47 +1,107 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { api } from "../api/client";
 
-// مشاركة الـ logo مع الـ Layout عبر localStorage
 export default function AdminSettings() {
-  const [platformName,  setPlatformName]  = useState("Darbni");
-  const [description,   setDescription]   = useState("");
-  const [logo,          setLogo]          = useState(() => localStorage.getItem("adminLogo") || null);
-  const [contactEmail,  setContactEmail]  = useState("support@darbni.com");
-  const [contactPhone,  setContactPhone]  = useState("+970 9 000 0000");
-  const [whatsapp,      setWhatsapp]      = useState("");
-  const [allowStudent,  setAllowStudent]  = useState(true);
-  const [allowCompany,  setAllowCompany]  = useState(true);
-  const [maintenance,   setMaintenance]   = useState(false);
-  const [maintMsg,      setMaintMsg]      = useState("Platform is under maintenance. Please check back later.");
-  const [saved,         setSaved]         = useState(false);
-  const [logoSaved,     setLogoSaved]     = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [logoSaved, setLogoSaved] = useState(false);
   const fileRef = useRef(null);
 
-  const handleLogoChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setLogo(reader.result);
-    reader.readAsDataURL(file);
-  };
+  // State للإعدادات
+  const [platformName, setPlatformName] = useState("");
+  const [description, setDescription] = useState("");
+  const [logo, setLogo] = useState(null);
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [allowStudent, setAllowStudent] = useState(true);
+  const [allowCompany, setAllowCompany] = useState(true);
+  const [maintenance, setMaintenance] = useState(false);
+  const [maintMsg, setMaintMsg] = useState("");
 
-  const handleSaveLogo = () => {
-    if (logo) {
-      localStorage.setItem("adminLogo", logo);
-      setLogoSaved(true);
-      setTimeout(() => setLogoSaved(false), 2000);
-      window.dispatchEvent(new Event("adminLogoUpdated"));
+  // جلب الإعدادات من الباك إند
+  const fetchSettings = async () => {
+    try {
+      const res = await api("/superadmin/platform-settings");
+      const settings = res.settings || res;
+      setPlatformName(settings.platformName || "Darbni");
+      setDescription(settings.platformDescription || "");
+      setLogo(settings.platformLogo || null);
+      setContactEmail(settings.contactEmail || "");
+      setContactPhone(settings.contactPhone || "");
+      setWhatsapp(settings.supportWhatsApp || "");
+      setAllowStudent(settings.allowStudentSignup ?? true);
+      setAllowCompany(settings.allowCompanySignup ?? true);
+      setMaintenance(settings.maintenanceMode ?? false);
+      setMaintMsg(settings.maintenanceMessage || "Platform is under maintenance. Please check back later.");
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRemoveLogo = () => {
-    setLogo(null);
-    localStorage.removeItem("adminLogo");
-    window.dispatchEvent(new Event("adminLogoUpdated"));
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  // حفظ الإعدادات
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api("/superadmin/platform-settings", {
+        method: "PUT",
+        body: {
+          platformName,
+          platformDescription: description,
+          contactEmail,
+          contactPhone,
+          supportWhatsApp: whatsapp,
+          allowStudentSignup: allowStudent,
+          allowCompanySignup: allowCompany,
+          maintenanceMode: maintenance,
+          maintenanceMessage: maintMsg,
+        }
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  // رفع الشعار
+  const handleLogoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append("logo", file);
+    
+    try {
+      const res = await api("/superadmin/upload-logo", { method: "POST", body: formData });
+      setLogo(res.logoUrl);
+      setLogoSaved(true);
+      setTimeout(() => setLogoSaved(false), 2000);
+      // تحديث الـ Layout
+      window.dispatchEvent(new Event("adminLogoUpdated"));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // حذف الشعار
+  const handleRemoveLogo = async () => {
+    try {
+      await api("/superadmin/logo", { method: "DELETE" });
+      setLogo(null);
+      window.dispatchEvent(new Event("adminLogoUpdated"));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const Toggle = ({ value, onChange }) => (
@@ -49,6 +109,8 @@ export default function AdminSettings() {
       <div className="as-toggle-knob" />
     </div>
   );
+
+  if (loading) return <div className="loading-state">Loading settings...</div>;
 
   return (
     <div className="au-page">
@@ -78,7 +140,7 @@ export default function AdminSettings() {
               <img src={logo} alt="logo" className="as-logo-preview" />
               <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                 <button className="as-btn-outline" onClick={() => fileRef.current.click()}>↑ Change Logo</button>
-                <button className="as-btn-purple" onClick={handleSaveLogo}>
+                <button className="as-btn-purple" onClick={handleLogoChange}>
                   💾 {logoSaved ? "Saved!" : "Save Logo"}
                 </button>
                 <button className="as-btn-danger" onClick={handleRemoveLogo}>🗑 Remove Logo</button>
@@ -163,8 +225,8 @@ export default function AdminSettings() {
 
       {saved && <div className="au-toast">✓ Settings saved successfully!</div>}
 
-      <button className="as-save-all-btn" onClick={handleSave}>
-        💾 Save All Settings
+      <button className="as-save-all-btn" onClick={handleSave} disabled={saving}>
+        💾 {saving ? "Saving..." : "Save All Settings"}
       </button>
     </div>
   );
