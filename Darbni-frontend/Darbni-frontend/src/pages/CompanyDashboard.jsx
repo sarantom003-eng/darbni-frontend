@@ -1,27 +1,70 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaBriefcase, FaUsers, FaGraduationCap, FaCheckCircle } from "react-icons/fa";
-
-const RECENT_APPS = [
-  { name: "Ahmad Nasser", field: "Web Development", status: "pending"  },
-  { name: "Sara Tomeh",   field: "Data Science",    status: "accepted" },
-  { name: "Khaled Hasan", field: "Cybersecurity",   status: "pending"  },
-];
-
-const TRAINING = [
-  { name: "Sara Tomeh",  date: "Mar 3, 2026", pct: 85 },
-  { name: "Rami Khalil", date: "Mar 2, 2026", pct: 60 },
-  { name: "Nour Abed",   date: "Mar 1, 2026", pct: 40 },
-];
-
-const barColor = (p) => p >= 80 ? "#27ae60" : p >= 50 ? "#f1c40f" : "#e74c3c";
-
-const statusStyle = (s) =>
-  s === "accepted"
-    ? { background: "#6c47ff", color: "#fff", border: "none" }
-    : { background: "transparent", color: "#888", border: "1px solid #ddd" };
+import { profileApi, applicationApi } from "../api/client";
 
 export default function CompanyDashboard() {
   const navigate = useNavigate();
+  const [stats, setStats] = useState(null);
+  const [recentApps, setRecentApps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // جلب الإحصائيات وأحدث الطلبات
+  useEffect(() => {
+    let alive = true;
+    const fetchData = async () => {
+      try {
+        const [statsRes, appsRes] = await Promise.allSettled([
+          profileApi.stats(),
+          applicationApi.company(),
+        ]);
+
+        if (statsRes.status === "fulfilled") {
+          setStats(statsRes.value);
+        }
+        if (appsRes.status === "fulfilled") {
+          const data = appsRes.value;
+          // جلب أول 3 طلبات pending (أو جميعها)
+          const pendingApps = data.pending || [];
+          setRecentApps(pendingApps.slice(0, 3));
+        }
+      } catch (err) {
+        if (alive) setError(err.message);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    fetchData();
+    return () => { alive = false; };
+  }, []);
+
+  const statsCards = stats ? [
+    { label: "Active Opportunities", value: stats.activeOpportunities || 0, icon: <FaBriefcase />, to: "/company/internships" },
+    { label: "Total Applicants",     value: stats.totalApplicants || 0,     icon: <FaUsers />,        to: "/company/students" },
+    { label: "Active Trainees",      value: stats.activeTrainees || 0,      icon: <FaGraduationCap />, to: "/company/progress" },
+    { label: "Completed Trainings",  value: stats.completedTrainings || 0,  icon: <FaCheckCircle />,  to: "/company/reports" },
+  ] : [];
+
+  const statusStyle = (status) => {
+    if (status === "company_approved" || status === "university_approved") {
+      return { background: "#6c47ff", color: "#fff", border: "none" };
+    }
+    return { background: "transparent", color: "#888", border: "1px solid #ddd" };
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      awaiting_company_approval: "Pending",
+      company_approved: "Approved",
+      pending_university: "Under Review",
+      university_approved: "Accepted",
+    };
+    return labels[status] || status;
+  };
+
+  if (loading) return <div className="loading-state">Loading dashboard...</div>;
+  if (error) return <div className="error-state">{error}</div>;
 
   return (
     <div className="dash-content">
@@ -34,12 +77,7 @@ export default function CompanyDashboard() {
 
       {/* Stats */}
       <div className="dash-stats">
-        {[
-          { label: "Active Opportunities", val: 4,  icon: <FaBriefcase />,    to: "/company/internships" },
-          { label: "Total Applicants",     val: 15, icon: <FaUsers />,        to: "/company/students"    },
-          { label: "In Training",          val: 6,  icon: <FaGraduationCap />,to: "/company/progress"    },
-          { label: "Completed",            val: 12, icon: <FaCheckCircle />,  to: "/company/reports"     },
-        ].map((s) => (
+        {statsCards.map((s) => (
           <div
             key={s.label}
             className="dash-stat"
@@ -50,7 +88,7 @@ export default function CompanyDashboard() {
               <span>{s.label}</span>
               <div className="dash-stat-icon">{s.icon}</div>
             </div>
-            <div className="dash-stat-val">{s.val}</div>
+            <div className="dash-stat-val">{s.value}</div>
           </div>
         ))}
       </div>
@@ -70,20 +108,28 @@ export default function CompanyDashboard() {
               View All →
             </span>
           </div>
-          {RECENT_APPS.map((app) => (
-            <div className="dash-app-item" key={app.name}>
-              <div>
-                <div className="dash-app-name">{app.name}</div>
-                <div className="dash-app-field">{app.field}</div>
-              </div>
-              <span className="dash-status" style={statusStyle(app.status)}>
-                {app.status}
-              </span>
-            </div>
-          ))}
+          {recentApps.length === 0 ? (
+            <div className="empty-state">No pending applications</div>
+          ) : (
+            recentApps.map((app, idx) => {
+              const studentName = app.studentId?.firstName || "Student";
+              const field = app.trainingId?.field || "Training";
+              return (
+                <div className="dash-app-item" key={idx}>
+                  <div>
+                    <div className="dash-app-name">{studentName}</div>
+                    <div className="dash-app-field">{field}</div>
+                  </div>
+                  <span className="dash-status" style={statusStyle(app.status)}>
+                    {getStatusLabel(app.status)}
+                  </span>
+                </div>
+              );
+            })
+          )}
         </div>
 
-        {/* Training Progress */}
+        {/* Training Progress - يحتاج API منفصل */}
         <div className="dash-card">
           <div className="dash-card-header">
             <h3>Training Progress</h3>
@@ -95,25 +141,7 @@ export default function CompanyDashboard() {
               View All →
             </span>
           </div>
-          {TRAINING.map((t) => (
-            <div className="dash-train-item" key={t.name}>
-              <div className="dash-train-top">
-                <div>
-                  <div className="dash-train-name">{t.name}</div>
-                  <div className="dash-train-date">Last entry: {t.date}</div>
-                </div>
-                <div className="dash-train-pct" style={{ color: barColor(t.pct) }}>
-                  {t.pct}%
-                </div>
-              </div>
-              <div className="dash-bar-bg">
-                <div
-                  className="dash-bar-fill"
-                  style={{ width: t.pct + "%", background: barColor(t.pct) }}
-                />
-              </div>
-            </div>
-          ))}
+          <div className="empty-state">Select a trainee to view progress</div>
         </div>
       </div>
     </div>
