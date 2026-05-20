@@ -38,7 +38,6 @@ export default function AdminPage() {
     return () => { alive = false; };
   }, []);
 
-  // تحويل البيانات من API إلى شكل البطاقات
   const statsCards = stats ? [
     { label: "Total Universities",  value: stats.universities || 0,   icon: <FaUniversity />,  color: "#6c47ff", bg: "#f3efff" },
     { label: "Total Students",      value: stats.students || 0,       icon: <FaUserGraduate />, color: "#6c47ff", bg: "#f3efff" },
@@ -49,7 +48,6 @@ export default function AdminPage() {
     { label: "Completed Trainings", value: stats.completedTrainings || 0, icon: <FaCheckCircle />, color: "#27ae60", bg: "#f0fdf4" },
   ] : [];
 
-  // دالة لتحديد لون النشاط حسب النوع
   const getActivityColor = (type) => {
     switch (type) {
       case "student_registered": return "#27ae60";
@@ -65,7 +63,6 @@ export default function AdminPage() {
   return (
     <div style={{ padding: "32px 36px", fontFamily: "'Segoe UI', sans-serif" }}>
 
-      {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <p style={{ color: "#888", fontSize: 13, marginBottom: 6 }}>Darbni</p>
         <h1 style={{ fontSize: "1.9rem", fontWeight: 700, color: "#1a1a2e", marginBottom: 6 }}>
@@ -74,14 +71,13 @@ export default function AdminPage() {
         <p style={{ color: "#888", fontSize: 14 }}>Live statistics across the entire Darbni platform</p>
       </div>
 
-      {/* Stats Grid */}
       <div className="admin-stats-grid">
         {statsCards.map((s, i) => (
           <div key={i} className="admin-stat-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 <p className="admin-stat-label">{s.label}</p>
-                <p className="admin-stat-value">{s.value.toLocaleString()}</p>
+                <p className="admin-stat-value">{s.value}</p>
               </div>
               <div className="admin-stat-icon" style={{ color: s.color, background: s.bg }}>
                 {s.icon}
@@ -91,7 +87,6 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {/* Recent Activity */}
       <div className="admin-activity-card">
         <h2 className="admin-activity-title">
           <span style={{ color: "#6c47ff" }}>⚡</span> Recent Activity
