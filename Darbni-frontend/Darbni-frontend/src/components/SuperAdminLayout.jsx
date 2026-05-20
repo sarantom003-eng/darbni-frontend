@@ -182,8 +182,7 @@ export default function SuperAdminLayout() {
     <div className="dashboard-container">
       <div className="sidebar">
         <div>
-          {/* ✅ التعديل هنا: بدل / -> /superadmin */}
-          <div className="sidebar-logo-wrap" style={{ cursor: "pointer" }} onClick={() => navigate("/superadmin")}>
+          <div className="sidebar-logo-wrap" style={{ cursor: "pointer" }} onClick={() => navigate("/")}>
             <span style={{ fontSize: 20 }}>🎓</span>
             <div>
               <div className="sidebar-logo-name">Darbni</div>
