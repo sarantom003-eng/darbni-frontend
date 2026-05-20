@@ -46,7 +46,7 @@ import SupervisorUniversitySettings from "./pages/SupervisorUniversitySettings.j
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 const router = createBrowserRouter([
-  // ✅ الصفحات العامة (خارج الـ Layout)
+  { path: "/",               element: <App /> },
   { path: "/about",          element: <AboutPage /> },
   { path: "/contact",        element: <ContactPage /> },
   { path: "/login",          element: <Login /> },
@@ -54,44 +54,32 @@ const router = createBrowserRouter([
   { path: "/reset-password/:token", element: <ResetPassword /> },
   { path: "/register",       element: <Register /> },
 
-  // ✅ Super Admin Layout (Landing Page داخل الـ Layout)
   {
-    path: "/",
+    path: "/superadmin",
     element: <SuperAdminLayout />,
     children: [
-      { index: true,          element: <App /> },  // ← Landing Page هنا
-      { path: "superadmin",   element: <AdminDashboard /> },
-      { path: "superadmin/universities", element: <AdminUniversities /> },
-      { path: "superadmin/supervisors",  element: <AdminSupervisors /> },
-      { path: "superadmin/students",     element: <AdminStudents /> },
-      { path: "superadmin/settings",     element: <AdminSettings /> },
+      { index: true,          element: <AdminDashboard /> },
+      { path: "universities", element: <AdminUniversities /> },
+      { path: "supervisors",  element: <AdminSupervisors /> },
+      { path: "students",     element: <AdminStudents /> },
+      { path: "settings",     element: <AdminSettings /> },
     ],
   },
 
-  // ✅ Student Layout (Landing Page داخل الـ Layout)
-  {
-    path: "/student",
-    element: <StudentLayout />,
-    children: [
-      { index: true,          element: <StudentDashboard /> },
-      { path: "landing",      element: <App /> },  // ← Landing Page هنا
-      { path: "profile",      element: <StudentProfile /> },
-      { path: "feed",         element: <InternshipFeed /> },
-      { path: "internship/:id", element: <InternshipDetail /> },
-      { path: "applications", element: <MyApplications /> },
-      { path: "logbook",      element: <TrainingLogbook /> },
-      { path: "rate",         element: <RateCompany /> },
-      { path: "notifications", element: <Notifications /> },
-    ],
-  },
+  { path: "/student",                element: <StudentLayout><StudentDashboard /></StudentLayout> },
+  { path: "/student/profile",        element: <StudentLayout><StudentProfile /></StudentLayout> },
+  { path: "/student/feed",           element: <StudentLayout><InternshipFeed /></StudentLayout> },
+  { path: "/student/internship/:id", element: <StudentLayout><InternshipDetail /></StudentLayout> },
+  { path: "/student/applications",   element: <StudentLayout><MyApplications /></StudentLayout> },
+  { path: "/student/logbook",        element: <StudentLayout><TrainingLogbook /></StudentLayout> },
+  { path: "/student/rate",           element: <StudentLayout><RateCompany /></StudentLayout> },
+  { path: "/student/notifications",  element: <StudentLayout><Notifications /></StudentLayout> },
 
-  // ✅ Supervisor Layout (Landing Page داخل الـ Layout)
   {
     path: "/supervisor",
     element: <UniversityLayout />,
     children: [
       { index: true,          element: <UniversityDashboard /> },
-      { path: "landing",      element: <App /> },  // ← Landing Page هنا
       { path: "profile",      element: <UniversityProfile /> },
       { path: "students",     element: <ManageStudents /> },
       { path: "companies",    element: <ManageCompanies /> },
@@ -103,13 +91,11 @@ const router = createBrowserRouter([
     ],
   },
 
-  // ✅ Company Layout (Landing Page داخل الـ Layout)
   {
     path: "/company",
     element: <CompanyLayout />,
     children: [
       { index: true,          element: <CompanyDashboard /> },
-      { path: "landing",      element: <App /> },  // ← Landing Page هنا
       { path: "profile",      element: <CompanyProfile /> },
       { path: "post",         element: <PostInternship /> },
       { path: "internships",  element: <ManageInternships /> },
