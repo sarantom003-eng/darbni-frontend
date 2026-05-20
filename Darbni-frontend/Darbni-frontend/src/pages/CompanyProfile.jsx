@@ -70,7 +70,6 @@ export default function CompanyProfile() {
   const logoRef = useRef();
   const avatarRef = useRef();
 
-  // جلب بيانات الشركة من الباك إند
   useEffect(() => {
     const fetchProfile = async () => {
       try {
