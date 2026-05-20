@@ -1,33 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "../api/client";
 
-const UNIVERSITIES_LIST = [
-  "Palestine Technical University – Kadoorie",
-  "An-Najah National University",
-  "Birzeit University",
-  "Bethlehem University",
-  "Palestine Polytechnic University",
-  "Hebron University",
-  "Al-Quds Open University",
-  "Arab American University",
-  "Al-Quds University",
-  "Al-Istiqlal University",
-];
-
-const INIT_SUPERVISORS = [
-  { name: "Ahmad Yousef", email: "ahmad.yousef@ptuk.edu.ps",  university: "Palestine Technical University – Kadoorie", role: "Coordinator", createdAt: "2024-09-01", status: "active" },
-  { name: "Lina Khalil",  email: "lina.k@najah.edu",          university: "An-Najah National University",             role: "Supervisor",  createdAt: "2024-10-12", status: "active" },
-  { name: "Omar Nasser",  email: "o.nasser@birzeit.edu",      university: "Birzeit University",                       role: "Supervisor",  createdAt: "2024-08-05", status: "inactive" },
-  { name: "Lina Saleh",   email: "l.saleh@bethlehem.edu",     university: "Bethlehem University",                     role: "Coordinator", createdAt: "2024-11-20", status: "active" },
-  { name: "Yousef Ali",   email: "y.ali@ppu.edu",             university: "Palestine Polytechnic University",         role: "Supervisor",  createdAt: "2024-07-14", status: "active" },
-];
-
-function AddSupervisorModal({ onClose, onAdd }) {
+function AddSupervisorModal({ onClose, onAdd, universities }) {
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", password: "",
-    university: "", title: "Training Coordinator", department: ""
+    universityId: "", title: "Training Coordinator", department: ""
   });
   const [errors, setErrors] = useState({});
-  const [saved, setSaved]   = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const validate = () => {
     const e = {};
@@ -35,23 +15,34 @@ function AddSupervisorModal({ onClose, onAdd }) {
     if (!form.lastName.trim())   e.lastName   = "Required";
     if (!form.email.trim())      e.email      = "Required";
     if (!form.password.trim())   e.password   = "Required";
-    if (!form.university)        e.university = "Required";
+    if (!form.universityId)      e.universityId = "Required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
-    onAdd({
-      name: `${form.firstName} ${form.lastName}`,
-      email: form.email,
-      university: form.university,
-      role: "Supervisor",
-      createdAt: new Date().toISOString().slice(0, 10),
-      status: "active",
-    });
-    setSaved(true);
-    setTimeout(onClose, 1200);
+    setSubmitting(true);
+    try {
+      const res = await api("/superadmin/supervisors", {
+        method: "POST",
+        body: {
+          email: form.email,
+          password: form.password,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          universityId: form.universityId,
+          title: form.title,
+          department: form.department,
+        }
+      });
+      onAdd(res.supervisor);
+      onClose();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -59,7 +50,6 @@ function AddSupervisorModal({ onClose, onAdd }) {
       <div className="au-add-modal" onClick={e => e.stopPropagation()}>
         <button className="au-modal-close" onClick={onClose}>✕</button>
         <h2 className="au-modal-title">Add New Supervisor</h2>
-        {saved && <div className="au-saved-note">✓ Supervisor added successfully!</div>}
 
         <div className="au-add-row">
           <div className="au-add-field">
@@ -96,13 +86,15 @@ function AddSupervisorModal({ onClose, onAdd }) {
 
         <div className="au-add-field">
           <label>University *</label>
-          <select value={form.university}
-            onChange={e => setForm({ ...form, university: e.target.value })}
-            className={errors.university ? "au-inp error" : "au-inp"}>
+          <select value={form.universityId}
+            onChange={e => setForm({ ...form, universityId: e.target.value })}
+            className={errors.universityId ? "au-inp error" : "au-inp"}>
             <option value="">Select university</option>
-            {UNIVERSITIES_LIST.map((u, i) => <option key={i} value={u}>{u}</option>)}
+            {universities.map((u) => (
+              <option key={u._id} value={u._id}>{u.name}</option>
+            ))}
           </select>
-          {errors.university && <span className="au-err">{errors.university}</span>}
+          {errors.universityId && <span className="au-err">{errors.universityId}</span>}
         </div>
 
         <div className="au-add-row">
@@ -122,7 +114,9 @@ function AddSupervisorModal({ onClose, onAdd }) {
 
         <div className="au-add-actions">
           <button className="au-cancel-btn" onClick={onClose}>Cancel</button>
-          <button className="au-save-btn" onClick={handleSave}>Save Supervisor</button>
+          <button className="au-save-btn" onClick={handleSave} disabled={submitting}>
+            {submitting ? "Saving..." : "Save Supervisor"}
+          </button>
         </div>
       </div>
     </div>
@@ -130,26 +124,67 @@ function AddSupervisorModal({ onClose, onAdd }) {
 }
 
 export default function AdminSupervisors() {
-  const [supervisors, setSupervisors] = useState(INIT_SUPERVISORS);
-  const [search,      setSearch]      = useState("");
-  const [filterUni,   setFilterUni]   = useState("All universities");
-  const [showAdd,     setShowAdd]     = useState(false);
-  const [toast,       setToast]       = useState("");
-  const [showDrop,    setShowDrop]    = useState(false);
+  const [supervisors, setSupervisors] = useState([]);
+  const [universities, setUniversities] = useState([]);
+  const [search, setSearch] = useState("");
+  const [filterUniId, setFilterUniId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [toast, setToast] = useState("");
+  const [showDrop, setShowDrop] = useState(false);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
-  const handleAdd = (s) => {
-    setSupervisors(prev => [...prev, s]);
-    showToast(`${s.name} added successfully!`);
+  // جلب الجامعات
+  const fetchUniversities = async () => {
+    try {
+      const res = await api("/superadmin/universities");
+      setUniversities(res.universities || []);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
+  // جلب المشرفين
+  const fetchSupervisors = async () => {
+    try {
+      const params = filterUniId ? `?universityId=${filterUniId}` : "";
+      const res = await api(`/superadmin/supervisors${params}`);
+      setSupervisors(res.supervisors || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUniversities();
+  }, []);
+
+  useEffect(() => {
+    fetchSupervisors();
+  }, [filterUniId]);
+
+  const handleAdd = (newSupervisor) => {
+    showToast(`${newSupervisor.firstName} ${newSupervisor.lastName} added successfully!`);
+    fetchSupervisors(); // إعادة تحميل القائمة
+  };
+
+  // فلترة حسب البحث (الاسم أو الإيميل)
   const filtered = supervisors.filter(s => {
-    const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) ||
-                        s.email.toLowerCase().includes(search.toLowerCase());
-    const matchUni    = filterUni === "All universities" || s.university === filterUni;
-    return matchSearch && matchUni;
+    const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+    const matchSearch = fullName.includes(search.toLowerCase()) ||
+                        s.userId?.email?.toLowerCase().includes(search.toLowerCase());
+    return matchSearch;
   });
+
+  const getUniversityName = (uniId) => {
+    const uni = universities.find(u => u._id === uniId);
+    return uni?.name || "";
+  };
+
+  if (loading) return <div className="loading-state">Loading supervisors...</div>;
 
   return (
     <div className="au-page">
@@ -159,18 +194,30 @@ export default function AdminSupervisors() {
           <p className="au-sub">Manage university supervisors and coordinators</p>
         </div>
         <div style={{ display: "flex", gap: 12 }}>
+          {/* Search */}
+          <input
+            className="au-search"
+            placeholder="Search by name or email..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: 250 }}
+          />
           {/* Filter Dropdown */}
           <div style={{ position: "relative" }}>
             <button className="au-filter-btn" onClick={() => setShowDrop(!showDrop)}>
-              {filterUni} ▾
+              {filterUniId ? (universities.find(u => u._id === filterUniId)?.name || "All universities") : "All universities"} ▾
             </button>
             {showDrop && (
               <div className="au-filter-drop">
-                {["All universities", ...UNIVERSITIES_LIST].map((u, i) => (
-                  <div key={i}
-                    className={`au-filter-item ${filterUni === u ? "selected" : ""}`}
-                    onClick={() => { setFilterUni(u); setShowDrop(false); }}>
-                    {filterUni === u && <span>✓ </span>}{u}
+                <div className={`au-filter-item ${!filterUniId ? "selected" : ""}`}
+                  onClick={() => { setFilterUniId(""); setShowDrop(false); }}>
+                  {!filterUniId && <span>✓ </span>}All universities
+                </div>
+                {universities.map((u) => (
+                  <div key={u._id}
+                    className={`au-filter-item ${filterUniId === u._id ? "selected" : ""}`}
+                    onClick={() => { setFilterUniId(u._id); setShowDrop(false); }}>
+                    {filterUniId === u._id && <span>✓ </span>}{u.name}
                   </div>
                 ))}
               </div>
@@ -187,32 +234,36 @@ export default function AdminSupervisors() {
               <th>Name</th>
               <th>Email</th>
               <th>University</th>
-              <th>Role</th>
+              <th>Title</th>
               <th>Created At</th>
-              <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((s, i) => (
-              <tr key={i}>
-                <td style={{ fontWeight: 600 }}>{s.name}</td>
-                <td style={{ color: "#888" }}>{s.email}</td>
-                <td>{s.university}</td>
-                <td><span className="au-role-badge">{s.role}</span></td>
-                <td style={{ color: "#888" }}>{s.createdAt}</td>
-                <td>
-                  <span className={`au-status ${s.status}`}>
-                    {s.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {filtered.length === 0 ? (
+              <tr><td colSpan={5} style={{ textAlign: "center", padding: 40, color: "#aaa" }}>No supervisors found</td></tr>
+            ) : (
+              filtered.map((s) => (
+                <tr key={s._id}>
+                  <td style={{ fontWeight: 600 }}>{s.firstName} {s.lastName}</td>
+                  <td style={{ color: "#888" }}>{s.userId?.email}</td>
+                  <td>{getUniversityName(s.universityId)}</td>
+                  <td><span className="au-role-badge">{s.title || "Supervisor"}</span></td>
+                  <td style={{ color: "#888" }}>{new Date(s.createdAt).toLocaleDateString()}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       {toast && <div className="au-toast">✓ {toast}</div>}
-      {showAdd && <AddSupervisorModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />}
+      {showAdd && (
+        <AddSupervisorModal
+          onClose={() => setShowAdd(false)}
+          onAdd={handleAdd}
+          universities={universities}
+        />
+      )}
     </div>
   );
 }
