@@ -56,6 +56,7 @@ function AddSupervisorModal({ onClose, onAdd, universities }) {
             <label>First Name *</label>
             <input placeholder="First Name" value={form.firstName}
               onChange={e => setForm({ ...form, firstName: e.target.value })}
+              autoComplete="off"
               className={errors.firstName ? "au-inp error" : "au-inp"} />
             {errors.firstName && <span className="au-err">{errors.firstName}</span>}
           </div>
@@ -63,6 +64,7 @@ function AddSupervisorModal({ onClose, onAdd, universities }) {
             <label>Last Name *</label>
             <input placeholder="Last Name" value={form.lastName}
               onChange={e => setForm({ ...form, lastName: e.target.value })}
+              autoComplete="off"
               className={errors.lastName ? "au-inp error" : "au-inp"} />
             {errors.lastName && <span className="au-err">{errors.lastName}</span>}
           </div>
@@ -72,6 +74,7 @@ function AddSupervisorModal({ onClose, onAdd, universities }) {
           <label>Email *</label>
           <input type="email" placeholder="email@university.edu" value={form.email}
             onChange={e => setForm({ ...form, email: e.target.value })}
+            autoComplete="off"
             className={errors.email ? "au-inp error" : "au-inp"} />
           {errors.email && <span className="au-err">{errors.email}</span>}
         </div>
@@ -80,6 +83,7 @@ function AddSupervisorModal({ onClose, onAdd, universities }) {
           <label>Password *</label>
           <input type="password" placeholder="••••••••" value={form.password}
             onChange={e => setForm({ ...form, password: e.target.value })}
+            autoComplete="new-password"
             className={errors.password ? "au-inp error" : "au-inp"} />
           {errors.password && <span className="au-err">{errors.password}</span>}
         </div>
@@ -102,12 +106,14 @@ function AddSupervisorModal({ onClose, onAdd, universities }) {
             <label>Title</label>
             <input placeholder="Training Coordinator" value={form.title}
               onChange={e => setForm({ ...form, title: e.target.value })}
+              autoComplete="off"
               className="au-inp" />
           </div>
           <div className="au-add-field">
             <label>Department</label>
             <input placeholder="Department" value={form.department}
               onChange={e => setForm({ ...form, department: e.target.value })}
+              autoComplete="off"
               className="au-inp" />
           </div>
         </div>
@@ -135,7 +141,6 @@ export default function AdminSupervisors() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
 
-  // جلب الجامعات
   const fetchUniversities = async () => {
     try {
       const res = await api("/superadmin/universities");
@@ -145,7 +150,6 @@ export default function AdminSupervisors() {
     }
   };
 
-  // جلب المشرفين
   const fetchSupervisors = async () => {
     try {
       const params = filterUniId ? `?universityId=${filterUniId}` : "";
@@ -158,7 +162,6 @@ export default function AdminSupervisors() {
     }
   };
 
-  // تحميل البيانات بالترتيب الصحيح
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -170,10 +173,9 @@ export default function AdminSupervisors() {
 
   const handleAdd = (newSupervisor) => {
     showToast(`${newSupervisor.firstName} ${newSupervisor.lastName} added successfully!`);
-    fetchSupervisors(); // إعادة تحميل القائمة
+    fetchSupervisors();
   };
 
-  // ✅ فلترة حسب البحث (الاسم أو الإيميل)
   const filtered = supervisors.filter(s => {
     const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
     const matchSearch = fullName.includes(search.toLowerCase()) ||
@@ -181,13 +183,8 @@ export default function AdminSupervisors() {
     return matchSearch;
   });
 
-  // ✅ دالة جلب اسم الجامعة - تدعم الـ ID والـ Object
   const getUniversityName = (uni) => {
-    // إذا كان uni كائن فيه name (من التوثيق الجديد)
-    if (uni && typeof uni === 'object' && uni.name) {
-      return uni.name;
-    }
-    // إذا كان uni هو ID فقط
+    if (uni && typeof uni === 'object' && uni.name) return uni.name;
     const uniObj = universities.find(u => u._id === uni);
     return uniObj?.name || "";
   };
@@ -202,7 +199,6 @@ export default function AdminSupervisors() {
           <p className="au-sub">Manage university supervisors and coordinators</p>
         </div>
         <div style={{ display: "flex", gap: 12 }}>
-          {/* Search */}
           <input
             className="au-search"
             placeholder="Search by name or email..."
@@ -210,7 +206,6 @@ export default function AdminSupervisors() {
             onChange={e => setSearch(e.target.value)}
             style={{ width: 250 }}
           />
-          {/* Filter Dropdown */}
           <div style={{ position: "relative" }}>
             <button className="au-filter-btn" onClick={() => setShowDrop(!showDrop)}>
               {filterUniId ? (universities.find(u => u._id === filterUniId)?.name || "All universities") : "All universities"} ▾
@@ -254,7 +249,6 @@ export default function AdminSupervisors() {
                 <tr key={s._id}>
                   <td style={{ fontWeight: 600 }}>{s.firstName} {s.lastName}</td>
                   <td style={{ color: "#888" }}>{s.userId?.email}</td>
-                  {/* ✅ استخدام الدالة التي تدعم الـ ID والـ Object */}
                   <td>{getUniversityName(s.universityId)}</td>
                   <td><span className="au-role-badge">{s.title || "Supervisor"}</span></td>
                   <td style={{ color: "#888" }}>{new Date(s.createdAt).toLocaleDateString()}</td>
