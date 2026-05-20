@@ -4,7 +4,7 @@ import { api } from "../api/client";
 function AddSupervisorModal({ onClose, onAdd, universities }) {
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", password: "",
-    universityId: "", title: "Training Coordinator", department: ""
+    universityId: "", title: "", department: ""
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -32,7 +32,7 @@ function AddSupervisorModal({ onClose, onAdd, universities }) {
           firstName: form.firstName,
           lastName: form.lastName,
           universityId: form.universityId,
-          title: form.title,
+          title: form.title || "Training Coordinator",
           department: form.department,
         }
       });
