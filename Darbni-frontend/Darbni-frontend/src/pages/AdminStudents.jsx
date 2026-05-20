@@ -1,29 +1,53 @@
-import { useState } from "react";
-
-const INIT_STUDENTS = [
-  { name: "Sara Omar",       id: "PTUK20210002", major: "Civil Engineering",        university: "Palestine Technical University – Kadoorie", creditHours: 93,  joinedDate: "2024-02-02" },
-  { name: "Tareq Adel",      id: "PTUK20210003", major: "Civil Engineering",        university: "Palestine Technical University – Kadoorie", creditHours: 99,  joinedDate: "2024-12-24" },
-  { name: "Yara Adel",       id: "PTUK20210004", major: "Software Engineering",     university: "Palestine Technical University – Kadoorie", creditHours: 109, joinedDate: "2024-07-25" },
-  { name: "Yousef Nasser",   id: "PTUK20210005", major: "Computer Science",         university: "Palestine Technical University – Kadoorie", creditHours: 139, joinedDate: "2024-04-06" },
-  { name: "Mohammed Said",   id: "PTUK20210006", major: "Business Administration",  university: "Palestine Technical University – Kadoorie", creditHours: 112, joinedDate: "2024-03-18" },
-  { name: "Dana Adel",       id: "PTUK20210007", major: "Information Systems",      university: "Palestine Technical University – Kadoorie", creditHours: 108, joinedDate: "2024-04-20" },
-  { name: "Khaled Hadi",     id: "PTUK20210008", major: "Business Administration",  university: "Palestine Technical University – Kadoorie", creditHours: 72,  joinedDate: "2024-03-13" },
-  { name: "Omar Saleh",      id: "PTUK20210009", major: "Business Administration",  university: "Palestine Technical University – Kadoorie", creditHours: 69,  joinedDate: "2024-07-11" },
-  { name: "Layla Ali",       id: "PTUK20210010", major: "Marketing",               university: "Palestine Technical University – Kadoorie", creditHours: 130, joinedDate: "2024-09-07" },
-  { name: "Mohammed Said",   id: "PTUK20210011", major: "Information Systems",      university: "Palestine Technical University – Kadoorie", creditHours: 101, joinedDate: "2024-12-21" },
-  { name: "Mohammed Daher",  id: "PTUK20210012", major: "Marketing",               university: "Palestine Technical University – Kadoorie", creditHours: 81,  joinedDate: "2024-05-15" },
-  { name: "Ahmad Nasser",    id: "NAJAH20210001", major: "Computer Science",        university: "An-Najah National University",             creditHours: 95,  joinedDate: "2024-03-10" },
-  { name: "Layla Haddad",    id: "NAJAH20210002", major: "Software Engineering",    university: "An-Najah National University",             creditHours: 110, joinedDate: "2024-06-15" },
-];
+import { useState, useEffect } from "react";
+import { api } from "../api/client";
 
 export default function AdminStudents() {
+  const [students, setStudents] = useState([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
 
-  const filtered = INIT_STUDENTS.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.id.toLowerCase().includes(search.toLowerCase()) ||
-    s.major.toLowerCase().includes(search.toLowerCase())
-  );
+  // جلب الطلاب من الباك إند
+  const fetchStudents = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.append("search", search);
+      params.append("page", page);
+      params.append("limit", 20);
+      
+      const res = await api(`/superadmin/all-students?${params.toString()}`);
+      setStudents(res.students || []);
+      setTotalPages(res.pagination?.totalPages || 1);
+      setHasMore(res.pagination?.hasMore || false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, [search, page]);
+
+  // تنسيق التاريخ
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString();
+  };
+
+  // البحث (مع debounce اختياري)
+  const handleSearch = (e) => {
+    setSearch(e.target.value);
+    setPage(1); // إعادة تعيين الصفحة عند البحث
+  };
+
+  if (loading && students.length === 0) {
+    return <div className="loading-state">Loading students...</div>;
+  }
 
   return (
     <div className="au-page">
@@ -40,7 +64,7 @@ export default function AdminStudents() {
           className="au-search-inp"
           placeholder="Search by name, student ID, or major..."
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={handleSearch}
         />
       </div>
 
@@ -57,19 +81,46 @@ export default function AdminStudents() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((s, i) => (
-              <tr key={i}>
-                <td style={{ fontWeight: 600 }}>{s.name}</td>
-                <td><span className="au-code-badge">{s.id}</span></td>
-                <td style={{ color: "#555" }}>{s.major}</td>
-                <td style={{ color: "#888", fontSize: 13 }}>{s.university}</td>
-                <td style={{ textAlign: "center" }}>{s.creditHours}</td>
-                <td style={{ color: "#888" }}>{s.joinedDate}</td>
-              </tr>
-            ))}
+            {students.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "#aaa" }}>
+                No students found
+              </td></tr>
+            ) : (
+              students.map((s, i) => (
+                <tr key={s._id || i}>
+                  <td style={{ fontWeight: 600 }}>{s.firstName} {s.lastName}</td>
+                  <td><span className="au-code-badge">{s.studentID}</span></td>
+                  <td style={{ color: "#555" }}>{s.major}</td>
+                  <td style={{ color: "#888", fontSize: 13 }}>{s.universityId?.name || s.university_name}</td>
+                  <td style={{ textAlign: "center" }}>{s.completedCreditHours || 0}</td>
+                  <td style={{ color: "#888" }}>{formatDate(s.createdAt)}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="au-pagination">
+          <button 
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="au-page-btn"
+          >
+            Previous
+          </button>
+          <span className="au-page-info">Page {page} of {totalPages}</span>
+          <button 
+            onClick={() => setPage(p => p + 1)}
+            disabled={!hasMore}
+            className="au-page-btn"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
