@@ -39,16 +39,18 @@ const mapApplication = (app, statusType) => {
     rejectionReason: app.companyRejectionReason || null,
     coverLetter: app.coverLetter || null,
     major: student.major || "N/A",
+    rawStatus: app.status,
   };
 };
 
-// ✅ Modal للرفض (زي الصورة)
+// ✅ Modal للرفض (زي تصميم الجامعة)
 function RejectModal({ studentName, onClose, onConfirm }) {
   const [reason, setReason] = useState("");
 
   return (
-    <div className="reject-overlay" onClick={onClose}>
-      <div className="reject-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="ur-overlay" onClick={onClose}>
+      <div className="ur-modal" style={{ maxWidth: 450 }} onClick={(e) => e.stopPropagation()}>
+        <button className="ur-modal-x" onClick={onClose}>✕</button>
         <h3 className="reject-modal-title">Reject Request</h3>
         <p className="reject-modal-message">
           Rejecting request from <strong>{studentName}</strong>. You can provide an optional reason.
@@ -63,12 +65,8 @@ function RejectModal({ studentName, onClose, onConfirm }) {
         />
         
         <div className="reject-modal-actions">
-          <button className="reject-btn-cancel" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="reject-btn-confirm" onClick={() => onConfirm(reason)}>
-            Reject
-          </button>
+          <button className="reject-btn-cancel" onClick={onClose}>Cancel</button>
+          <button className="reject-btn-confirm" onClick={() => onConfirm(reason)}>Reject</button>
         </div>
       </div>
     </div>
@@ -90,11 +88,15 @@ export default function StudentRequests() {
     setError("");
     try {
       const response = await applicationApi.company();
+      console.log("🔍 API Response:", response);
+      
       const pendingApps = (response.pending || []).map(app => mapApplication(app, "pending"));
       const resolvedApps = (response.resolved || []).map(app => mapApplication(app, "resolved"));
+      
       setPending(pendingApps);
       setResolved(resolvedApps);
     } catch (err) {
+      console.error("❌ Error:", err);
       setError(err.message);
     } finally {
       setLoading(false);
