@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FaCheck, FaTimes, FaChevronRight, FaClock, FaCheckCircle } from "react-icons/fa";
-import { applicationApi, api } from "../api/client";
+import { applicationApi } from "../api/client";  // ✅ بس applicationApi
 
 const getColorForName = (name) => {
   const colors = ["#6c47ff", "#4a3fa0", "#27ae60", "#e74c3c", "#f39c12", "#1abc9c", "#3498db", "#9b59b6"];
@@ -16,6 +16,17 @@ const mapApplication = (app, statusType) => {
   const lastName = student.lastName || "";
   const fullName = `${firstName} ${lastName}`.trim() || "Unknown Student";
   
+  // ✅ تحديد الحالة المعروضة
+  let displayStatus = "pending";
+  if (statusType === "resolved") {
+    if (app.status === "company_approved" || app.status === "university_approved" || 
+        app.status === "company_final_approved" || app.status === "completed") {
+      displayStatus = "approved";
+    } else if (app.status === "company_rejected" || app.status === "university_rejected") {
+      displayStatus = "rejected";
+    }
+  }
+  
   return {
     id: app._id,
     name: fullName,
@@ -26,9 +37,9 @@ const mapApplication = (app, statusType) => {
     date: app.createdAt 
       ? new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : "",
-    status: statusType === "pending" ? "pending" : (app.status === "company_approved" ? "approved" : "rejected"),
-    resolvedDate: app.companyApprovedAt
-      ? new Date(app.companyApprovedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    status: displayStatus,
+    resolvedDate: app.companyApprovedAt || app.companyRejectedAt  // ✅ الاثنين
+      ? new Date(app.companyApprovedAt || app.companyRejectedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : null,
     rejectionReason: app.companyRejectionReason || null,
     coverLetter: app.coverLetter || null,
@@ -50,11 +61,15 @@ export default function StudentRequests() {
     setError("");
     try {
       const response = await applicationApi.company();
+      console.log("🔍 API Response:", response);
+      
       const pendingApps = (response.pending || []).map(app => mapApplication(app, "pending"));
       const resolvedApps = (response.resolved || []).map(app => mapApplication(app, "resolved"));
+      
       setPending(pendingApps);
       setResolved(resolvedApps);
     } catch (err) {
+      console.error("❌ Error:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -65,13 +80,11 @@ export default function StudentRequests() {
     loadApplications();
   }, []);
 
+  // ✅ استخدام applicationApi.companyResponse
   const handleApprove = async (id) => {
     setProcessingId(id);
     try {
-      await api(`/applications/${id}/companyresponse`, {
-        method: "PATCH",
-        body: { action: "approve", rejectionReason: "" },
-      });
+      await applicationApi.companyResponse(id, "approve");
       await loadApplications();
     } catch (err) {
       setError(err.message);
@@ -80,15 +93,14 @@ export default function StudentRequests() {
     }
   };
 
+  // ✅ استخدام applicationApi.companyResponse مع سبب الرفض
   const handleReject = async (id) => {
     const reason = prompt("Enter rejection reason:", "Position filled or requirements not met");
     if (reason === null) return;
+    
     setProcessingId(id);
     try {
-      await api(`/applications/${id}/companyresponse`, {
-        method: "PATCH",
-        body: { action: "reject", rejectionReason: reason },
-      });
+      await applicationApi.companyResponse(id, "reject", reason);
       await loadApplications();
     } catch (err) {
       setError(err.message);
