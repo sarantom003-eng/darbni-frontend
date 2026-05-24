@@ -87,7 +87,7 @@ function Field({ label, value, full }) {
   );
 }
 
-// ✅ تحويل بيانات الـ API إلى تنسيق الواجهة
+// ✅ تحويل بيانات الـ API إلى تنسيق الواجهة (حسب Database Fields)
 const mapApplication = (app, statusType) => {
   const student = app.studentId || {};
   const training = app.trainingId || {};
@@ -141,7 +141,7 @@ export default function UniversityRequests() {
       const response = await applicationApi.company();
       console.log("🔍 Company API Response:", response);
       
-      // ✅ تصفية البيانات حسب الحالة
+      // ✅ تصفية البيانات حسب الحالة (حسب Database Statuses)
       setPending((response.pending || []).map(app => mapApplication(app, "pending")));
       setResolved((response.resolved || []).filter(app => app.status === "company_approved").map(app => mapApplication(app, "resolved")));
       setCancelled((response.resolved || []).filter(app => app.status === "company_rejected").map(app => mapApplication(app, "cancelled")));
@@ -157,7 +157,7 @@ export default function UniversityRequests() {
     loadApplications();
   }, []);
 
-  // ✅ الموافقة النهائية من الشركة
+  // ✅ الموافقة النهائية من الشركة (تغير الحالة إلى company_final_approved)
   const handleAccept = async (id) => {
     setProcessingId(id);
     try {
