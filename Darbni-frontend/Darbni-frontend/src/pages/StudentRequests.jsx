@@ -11,14 +11,17 @@ const getColorForName = (name) => {
 const mapApplication = (app, statusType) => {
   const student = app.studentId || {};
   const training = app.trainingId || {};
+  
   const firstName = student.firstName || "";
   const lastName = student.lastName || "";
   const fullName = `${firstName} ${lastName}`.trim() || "Unknown Student";
+  
   let displayStatus = "pending";
   if (statusType === "resolved") {
     if (app.status === "company_approved") displayStatus = "approved";
     else if (app.status === "company_rejected") displayStatus = "rejected";
   }
+  
   return {
     id: app._id,
     name: fullName,
@@ -26,7 +29,7 @@ const mapApplication = (app, statusType) => {
     color: getColorForName(firstName || fullName),
     university: student.university_name || student.universityId?.name || "Unknown",
     position: training.title || "Unknown Position",
-    date: app.createdAt
+    date: app.createdAt 
       ? new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : "",
     status: displayStatus,
@@ -39,6 +42,39 @@ const mapApplication = (app, statusType) => {
   };
 };
 
+// ✅ Modal للرفض
+function RejectModal({ studentName, onClose, onConfirm }) {
+  const [reason, setReason] = useState("");
+
+  return (
+    <div className="reject-overlay" onClick={onClose}>
+      <div className="reject-modal" onClick={(e) => e.stopPropagation()}>
+        <h3 className="reject-modal-title">Reject Request</h3>
+        <p className="reject-modal-message">
+          Rejecting request from <strong>{studentName}</strong>. You can provide an optional reason.
+        </p>
+        
+        <textarea
+          className="reject-textarea"
+          placeholder="Reason for rejection (optional)..."
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+        />
+        
+        <div className="reject-modal-actions">
+          <button className="reject-btn-cancel" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="reject-btn-confirm" onClick={() => onConfirm(reason)}>
+            Reject
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StudentRequests() {
   const [pending, setPending] = useState([]);
   const [resolved, setResolved] = useState([]);
@@ -47,8 +83,7 @@ export default function StudentRequests() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [processingId, setProcessingId] = useState(null);
-  // ✅ هاد الوحيد الجديد
-  const [rejectModal, setRejectModal] = useState({ open: false, id: null, name: "", reason: "" });
+  const [rejectModal, setRejectModal] = useState({ open: false, id: null, name: "" });
 
   const loadApplications = async () => {
     setLoading(true);
@@ -66,7 +101,9 @@ export default function StudentRequests() {
     }
   };
 
-  useEffect(() => { loadApplications(); }, []);
+  useEffect(() => {
+    loadApplications();
+  }, []);
 
   const handleApprove = async (id) => {
     setProcessingId(id);
@@ -80,18 +117,11 @@ export default function StudentRequests() {
     }
   };
 
-  // ✅ بدل prompt — بيفتح الـ modal
-  const handleReject = (id) => {
-    const req = [...pending, ...resolved].find(r => r.id === id);
-    setRejectModal({ open: true, id, name: req?.name || "", reason: "" });
-  };
-
-  // ✅ لما يضغط Reject في الـ modal
-  const confirmReject = async () => {
-    setProcessingId(rejectModal.id);
-    setRejectModal({ open: false, id: null, name: "", reason: "" });
+  const handleReject = async (id, reason) => {
+    setProcessingId(id);
     try {
-      await applicationApi.companyResponse(rejectModal.id, "reject", rejectModal.reason);
+      await applicationApi.companyResponse(id, "reject", reason || "No reason provided");
+      setRejectModal({ open: false, id: null, name: "" });
       await loadApplications();
     } catch (err) {
       setError(err.message);
@@ -100,11 +130,13 @@ export default function StudentRequests() {
     }
   };
 
-  const closeRejectModal = () => setRejectModal({ open: false, id: null, name: "", reason: "" });
-
-  const toggleExpand = (id) => setExpandedId((prev) => (prev === id ? null : id));
+  const toggleExpand = (id) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
 
   const displayList = activeTab === "pending" ? pending : resolved;
+  const pendingCount = pending.length;
+  const resolvedCount = resolved.length;
 
   return (
     <div className="sr-page">
@@ -125,13 +157,15 @@ export default function StudentRequests() {
           className={`sr-tab${activeTab === "pending" ? " sr-tab-active" : ""}`}
           onClick={() => setActiveTab("pending")}
         >
-          <FaClock size={12} /> Pending ({pending.length})
+          <FaClock size={12} />
+          Pending ({pendingCount})
         </button>
         <button
           className={`sr-tab${activeTab === "resolved" ? " sr-tab-active" : ""}`}
           onClick={() => setActiveTab("resolved")}
         >
-          <FaCheckCircle size={12} /> Resolved ({resolved.length})
+          <FaCheckCircle size={12} />
+          Resolved ({resolvedCount})
         </button>
       </div>
 
@@ -146,7 +180,9 @@ export default function StudentRequests() {
         <div className="sr-list">
           {displayList.length === 0 && (
             <div className="sr-empty">
-              {activeTab === "pending" ? "No pending requests at the moment." : "No resolved requests yet."}
+              {activeTab === "pending"
+                ? "No pending requests at the moment."
+                : "No resolved requests yet."}
             </div>
           )}
 
@@ -156,12 +192,14 @@ export default function StudentRequests() {
                 <div className="sr-avatar" style={{ background: req.color }}>
                   {req.initials}
                 </div>
+
                 <div className="sr-info">
                   <div className="sr-name">{req.name}</div>
                   <div className="sr-meta">
                     {req.university} · {req.position} · {req.date}
                   </div>
                 </div>
+
                 <div className="sr-actions">
                   {req.status === "pending" && (
                     <>
@@ -176,15 +214,24 @@ export default function StudentRequests() {
                       <button
                         className="sr-btn-reject"
                         disabled={processingId === req.id}
-                        onClick={(e) => { e.stopPropagation(); handleReject(req.id); }}
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setRejectModal({ open: true, id: req.id, name: req.name });
+                        }}
                       >
                         <FaTimes size={11} /> {processingId === req.id ? "..." : "Reject"}
                       </button>
                     </>
                   )}
-                  {req.status === "approved" && <span className="sr-status-badge sr-status-approved">Approved</span>}
-                  {req.status === "rejected" && <span className="sr-status-badge sr-status-rejected">Rejected</span>}
-                  <FaChevronRight className={`sr-chevron${expandedId === req.id ? " sr-chevron-open" : ""}`} />
+                  {req.status === "approved" && (
+                    <span className="sr-status-badge sr-status-approved">Approved</span>
+                  )}
+                  {req.status === "rejected" && (
+                    <span className="sr-status-badge sr-status-rejected">Rejected</span>
+                  )}
+                  <FaChevronRight
+                    className={`sr-chevron${expandedId === req.id ? " sr-chevron-open" : ""}`}
+                  />
                 </div>
               </div>
 
@@ -215,7 +262,8 @@ export default function StudentRequests() {
                       <span className="sr-detail-label">Status</span>
                       <span className="sr-detail-val" style={{
                         color: req.status === "approved" ? "#27ae60" : req.status === "rejected" ? "#e74c3c" : "#b8860b",
-                        fontWeight: 700, textTransform: "capitalize"
+                        fontWeight: 700,
+                        textTransform: "capitalize"
                       }}>{req.status}</span>
                     </div>
                     {req.resolvedDate && (
@@ -244,36 +292,12 @@ export default function StudentRequests() {
         </div>
       )}
 
-      {/* ✅ Reject Modal — الجديد */}
       {rejectModal.open && (
-        <div className="modal-overlay" onClick={closeRejectModal}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="modal-header">
-              <h3>Reject Request</h3>
-              <button className="modal-close" onClick={closeRejectModal}>✕</button>
-            </div>
-            <p className="modal-sub">
-              Rejecting request from <strong>{rejectModal.name}</strong>. You can provide an optional reason.
-            </p>
-            <textarea
-              className="modal-textarea"
-              rows={4}
-              placeholder="Reason for rejection (optional)..."
-              value={rejectModal.reason}
-              onChange={e => setRejectModal(prev => ({ ...prev, reason: e.target.value }))}
-            />
-            <div className="modal-actions">
-              <button className="modal-cancel" onClick={closeRejectModal}>Cancel</button>
-              <button
-                className="modal-submit"
-                style={{ background: "#e74c3c" }}
-                onClick={confirmReject}
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-        </div>
+        <RejectModal
+          studentName={rejectModal.name}
+          onClose={() => setRejectModal({ open: false, id: null, name: "" })}
+          onConfirm={(reason) => handleReject(rejectModal.id, reason)}
+        />
       )}
     </div>
   );
