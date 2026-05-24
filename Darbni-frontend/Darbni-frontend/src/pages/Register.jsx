@@ -41,14 +41,12 @@ export default function Register() {
   const [apiError,             setApiError]             = useState("");
   const [apiInfo,              setApiInfo]              = useState("");
 
-  // fields الطالب
   const [studentID,            setStudentID]            = useState("");
   const [major,                setMajor]                = useState("");
   const [year_of_study,        setYearOfStudy]          = useState("");
   const [completedCreditHours, setCompletedCreditHours] = useState("");
   const [phone,                setPhone]                = useState("");
 
-  // ✅ fields الشركة — جديد
   const [companyName,          setCompanyName]          = useState("");
   const [industry,             setIndustry]             = useState("");
   const [city,                 setCity]                 = useState("");
@@ -60,7 +58,7 @@ export default function Register() {
   const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
   const detected = useMemo(() => detectRoleFromEmail(email), [email]);
   const isStudent = detected.role === "student";
-  const isCompany = detected.role === "company"; // ✅ جديد
+  const isCompany = detected.role === "company";
 
   const validate = () => {
     const e = {};
@@ -75,7 +73,6 @@ export default function Register() {
       if (!lastName.trim())  e.lastName  = "Last name is required";
     }
 
-    // validation الطالب
     if (isStudent) {
       if (!studentID.trim())            e.studentID            = "Student ID is required";
       if (!major.trim())                e.major                = "Major is required";
@@ -84,7 +81,6 @@ export default function Register() {
       if (!phone.trim())                e.phone                = "Phone is required";
     }
 
-    // ✅ validation الشركة
     if (isCompany) {
       if (!companyName.trim()) e.companyName = "Company name is required";
     }
@@ -113,10 +109,8 @@ export default function Register() {
           phone,
         };
       } else if (isCompany) {
-        // ✅ payload الشركة الكامل
         payload = {
-          email,
-          password,
+          email, password,
           name: companyName,
           industry,
           city,
@@ -127,8 +121,7 @@ export default function Register() {
         };
       } else {
         payload = {
-          email,
-          password,
+          email, password,
           name: `${firstName} ${lastName}`.trim(),
         };
       }
@@ -249,7 +242,7 @@ export default function Register() {
                   <div className="reg-inp-wrap">
                     <input
                       type="text"
-                      placeholder="Tech Solutions Ltd."
+                      placeholder="Your company name"
                       value={companyName}
                       onChange={e => setCompanyName(e.target.value)}
                       className={errors.companyName ? "reg-inp error" : "reg-inp"}
@@ -259,7 +252,7 @@ export default function Register() {
                   {errors.companyName && <p className="reg-err">{errors.companyName}</p>}
                 </div>
 
-                {/* Password داخل بوكس الشركة */}
+                {/* Password */}
                 <div className="reg-field" style={{ marginBottom: 0 }}>
                   <label>Password</label>
                   <div className="reg-inp-wrap">
@@ -295,7 +288,7 @@ export default function Register() {
                     <div className="reg-inp-wrap">
                       <input
                         type="text"
-                        placeholder="Software / IT"
+                        placeholder="Your industry"
                         value={industry}
                         onChange={e => setIndustry(e.target.value)}
                         className="reg-inp"
@@ -308,7 +301,7 @@ export default function Register() {
                     <div className="reg-inp-wrap">
                       <input
                         type="text"
-                        placeholder="Tulkarm"
+                        placeholder="Your city"
                         value={city}
                         onChange={e => setCity(e.target.value)}
                         className="reg-inp"
@@ -324,7 +317,7 @@ export default function Register() {
                   <div className="reg-inp-wrap">
                     <input
                       type="text"
-                      placeholder="Street, building, area"
+                      placeholder="Your address"
                       value={location}
                       onChange={e => setLocation(e.target.value)}
                       className="reg-inp"
@@ -340,7 +333,7 @@ export default function Register() {
                     <div className="reg-inp-wrap">
                       <input
                         type="text"
-                        placeholder="+970 59 000 0000"
+                        placeholder="Your phone number"
                         value={companyPhone}
                         onChange={e => setCompanyPhone(e.target.value)}
                         className="reg-inp"
@@ -353,7 +346,7 @@ export default function Register() {
                     <div className="reg-inp-wrap">
                       <input
                         type="text"
-                        placeholder="https://example.com"
+                        placeholder="Your website"
                         value={website}
                         onChange={e => setWebsite(e.target.value)}
                         className="reg-inp"
@@ -382,7 +375,7 @@ export default function Register() {
               </div>
             )}
 
-            {/* Name + Password — للطالب والسوبرفايزر بس */}
+            {/* Name + Password للطالب والسوبرفايزر */}
             {!isCompany && (
               <>
                 <div className="reg-row">
