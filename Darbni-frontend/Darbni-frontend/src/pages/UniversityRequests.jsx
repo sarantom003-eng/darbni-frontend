@@ -2,7 +2,29 @@ import { useEffect, useState } from "react";
 import { FaCheck, FaClock, FaCheckCircle, FaBan, FaTimes } from "react-icons/fa";
 import { applicationApi } from "../api/client";
 
-/* ── Modal عرض التفاصيل ── */
+// ✅ Toast بسيط وجميل بدون مكاتب إضافية
+function CustomToast({ message, type, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (onClose) onClose();
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className={`custom-toast custom-toast-${type}`}>
+      <span className="custom-toast-icon">
+        {type === "error" && "❌"}
+        {type === "success" && "✅"}
+        {type === "info" && "ℹ️"}
+        {type === "warning" && "⚠️"}
+      </span>
+      <span className="custom-toast-message">{message}</span>
+      <button className="custom-toast-close" onClick={onClose}>✕</button>
+    </div>
+  );
+}
+
 function RequestModal({ req, onClose, onAccept }) {
   const company = localStorage.getItem("name") || "Your Company";
 
@@ -11,7 +33,6 @@ function RequestModal({ req, onClose, onAccept }) {
       <div className="ur-modal" onClick={(e) => e.stopPropagation()}>
         <button className="ur-modal-x" onClick={onClose}><FaTimes /></button>
 
-        {/* Official Letter Header */}
         <div className="ur-letter-header">
           <span className="ur-letter-icon">📄</span>
           <div>
@@ -20,7 +41,6 @@ function RequestModal({ req, onClose, onAccept }) {
           </div>
         </div>
 
-        {/* Letter Content */}
         <div className="ur-letter-box" dir="rtl">
           <div className="ur-banner-wrap">
             <img src="/ptu-banner.png" alt="University Letterhead" className="ur-banner-img" />
@@ -44,7 +64,6 @@ function RequestModal({ req, onClose, onAccept }) {
           </div>
         </div>
 
-        {/* Report Form */}
         <div className="ur-report">
           <h3 className="ur-report-title">Final Training Report — Filled by Company</h3>
           <p className="ur-report-sub">Submitted by {company}</p>
@@ -62,7 +81,6 @@ function RequestModal({ req, onClose, onAccept }) {
           </div>
         </div>
 
-        {/* Actions */}
         <div className="ur-actions">
           <button className="ur-btn-close" onClick={onClose}>Close</button>
           {req.status === "pending" && (
@@ -87,7 +105,6 @@ function Field({ label, value, full }) {
   );
 }
 
-// ✅ تحويل بيانات الـ API إلى تنسيق الواجهة (حسب Database Fields)
 const mapApplication = (app, statusType) => {
   const student = app.studentId || {};
   const training = app.trainingId || {};
@@ -120,6 +137,7 @@ const mapApplication = (app, statusType) => {
     hours: training.totalHours || 160,
     supervisor: app.supervisorId?.firstName ? `${app.supervisorId.firstName} ${app.supervisorId.lastName}` : "University Supervisor",
     status: displayStatus,
+    rawStatus: app.status,
   };
 };
 
@@ -132,8 +150,12 @@ export default function UniversityRequests() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [processingId, setProcessingId] = useState(null);
+  const [toast, setToast] = useState(null);
 
-  // ✅ جلب البيانات من الـ API الخاص بالشركة
+  const showToast = (message, type = "error") => {
+    setToast({ message, type });
+  };
+
   const loadApplications = async () => {
     setLoading(true);
     setError("");
@@ -141,7 +163,6 @@ export default function UniversityRequests() {
       const response = await applicationApi.company();
       console.log("🔍 Company API Response:", response);
       
-      // ✅ تصفية البيانات حسب الحالة (حسب Database Statuses)
       setPending((response.pending || []).map(app => mapApplication(app, "pending")));
       setResolved((response.resolved || []).filter(app => app.status === "company_approved").map(app => mapApplication(app, "resolved")));
       setCancelled((response.resolved || []).filter(app => app.status === "company_rejected").map(app => mapApplication(app, "cancelled")));
@@ -157,15 +178,21 @@ export default function UniversityRequests() {
     loadApplications();
   }, []);
 
-  // ✅ الموافقة النهائية من الشركة (تغير الحالة إلى company_final_approved)
-  const handleAccept = async (id) => {
+  const handleAccept = async (id, currentStatus) => {
     setProcessingId(id);
     try {
+      if (currentStatus === "company_rejected") {
+        showToast("This application has been rejected and cannot be approved.", "error");
+        setProcessingId(null);
+        return;
+      }
+      
       await applicationApi.companyFinalResponse(id, "approve");
+      showToast("Application approved successfully!", "success");
       await loadApplications();
       setSelected(null);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message || "Failed to approve application", "error");
     } finally {
       setProcessingId(null);
     }
@@ -197,22 +224,13 @@ export default function UniversityRequests() {
       )}
 
       <div className="ur-tabs">
-        <button
-          className={`ur-tab${tab === "pending" ? " ur-tab-active" : ""}`}
-          onClick={() => setTab("pending")}
-        >
+        <button className={`ur-tab${tab === "pending" ? " ur-tab-active" : ""}`} onClick={() => setTab("pending")}>
           <FaClock size={12} /> Pending ({pendingCount})
         </button>
-        <button
-          className={`ur-tab${tab === "resolved" ? " ur-tab-active" : ""}`}
-          onClick={() => setTab("resolved")}
-        >
+        <button className={`ur-tab${tab === "resolved" ? " ur-tab-active" : ""}`} onClick={() => setTab("resolved")}>
           <FaCheckCircle size={12} /> Resolved ({resolvedCount})
         </button>
-        <button
-          className={`ur-tab${tab === "cancelled" ? " ur-tab-active" : ""}`}
-          onClick={() => setTab("cancelled")}
-        >
+        <button className={`ur-tab${tab === "cancelled" ? " ur-tab-active" : ""}`} onClick={() => setTab("cancelled")}>
           <FaBan size={12} /> Cancelled ({cancelledCount})
         </button>
       </div>
@@ -243,7 +261,7 @@ export default function UniversityRequests() {
                     <button
                       className="ur-accept-btn"
                       disabled={processingId === r.id}
-                      onClick={(e) => { e.stopPropagation(); handleAccept(r.id); }}
+                      onClick={(e) => { e.stopPropagation(); handleAccept(r.id, r.rawStatus); }}
                     >
                       <FaCheck size={11} /> {processingId === r.id ? "..." : "Accept"}
                     </button>
@@ -258,10 +276,15 @@ export default function UniversityRequests() {
       )}
 
       {selected && (
-        <RequestModal
-          req={selected}
-          onClose={() => setSelected(null)}
-          onAccept={handleAccept}
+        <RequestModal req={selected} onClose={() => setSelected(null)} onAccept={handleAccept} />
+      )}
+
+      {/* ✅ Toast Component */}
+      {toast && (
+        <CustomToast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
         />
       )}
     </div>
