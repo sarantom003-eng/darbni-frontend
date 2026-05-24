@@ -1,37 +1,39 @@
 import { useEffect, useState } from "react";
 import { FaCheck, FaTimes, FaChevronRight, FaClock, FaCheckCircle } from "react-icons/fa";
-import { companyApi } from "../api/companyApi";
+import { applicationApi } from "../api/client";
 
-// ✅ Mapping من Response API إلى تنسيق الواجهة
+const getColorForName = (name) => {
+  const colors = ["#6c47ff", "#4a3fa0", "#27ae60", "#e74c3c", "#f39c12", "#1abc9c", "#3498db", "#9b59b6"];
+  const index = name.length ? name.charCodeAt(0) % colors.length : 0;
+  return colors[index];
+};
+
 const mapApplication = (app, statusType) => {
   const student = app.studentId || {};
   const training = app.trainingId || {};
   
+  const firstName = student.firstName || "";
+  const lastName = student.lastName || "";
+  const fullName = `${firstName} ${lastName}`.trim() || "Unknown Student";
+  
   return {
     id: app._id,
-    name: `${student.firstName || ""} ${student.lastName || ""}`.trim() || "Unknown",
-    initials: student.firstName ? `${student.firstName[0]}${student.lastName?.[0] || ""}` : "??",
-    color: getColorForName(student.firstName || ""),
+    name: fullName,
+    initials: firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
+    color: getColorForName(firstName || fullName),
     university: student.university_name || student.universityId?.name || "Unknown",
     position: training.title || "Unknown Position",
-    date: app.createdAt ? new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
+    date: app.createdAt 
+      ? new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "",
     status: statusType === "pending" ? "pending" : (app.status === "company_approved" ? "approved" : "rejected"),
     resolvedDate: app.companyApprovedAt || app.companyRejectedAt 
       ? new Date(app.companyApprovedAt || app.companyRejectedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : null,
     rejectionReason: app.companyRejectionReason || null,
     coverLetter: app.coverLetter || null,
-    major: student.major || "Unknown",
-    studentEmail: student.email || null,
-    studentPhone: student.phone || null,
+    major: student.major || "N/A",
   };
-};
-
-// دالة لتوليد لون عشوائي ثابت حسب الاسم
-const getColorForName = (name) => {
-  const colors = ["#6c47ff", "#4a3fa0", "#27ae60", "#e74c3c", "#f39c12", "#1abc9c", "#3498db", "#9b59b6"];
-  const index = name.length ? name.charCodeAt(0) % colors.length : 0;
-  return colors[index];
 };
 
 export default function StudentRequests() {
@@ -43,22 +45,17 @@ export default function StudentRequests() {
   const [error, setError] = useState("");
   const [processingId, setProcessingId] = useState(null);
 
-  // ✅ جلب البيانات من الـ API
   const loadApplications = async () => {
     setLoading(true);
     setError("");
     try {
-      const response = await companyApi.getCompanyApplications();
-      
-      // ✅ حسب الـ Response من الـ Docs
+      const response = await applicationApi.company();
       const pendingApps = (response.pending || []).map(app => mapApplication(app, "pending"));
       const resolvedApps = (response.resolved || []).map(app => mapApplication(app, "resolved"));
-      
       setPending(pendingApps);
       setResolved(resolvedApps);
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
-      console.error("Error loading applications:", err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -68,28 +65,28 @@ export default function StudentRequests() {
     loadApplications();
   }, []);
 
-  // ✅ الموافقة على طالب
   const handleApprove = async (id) => {
     setProcessingId(id);
     try {
-      await companyApi.respondToApplication(id, "approve");
-      // إعادة تحميل البيانات بعد الموافقة
+      await applicationApi.companyResponse(id, "approve");
       await loadApplications();
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
+      setError(err.message);
     } finally {
       setProcessingId(null);
     }
   };
 
-  // ✅ رفض طالب
-  const handleReject = async (id, rejectionReason = "Position filled or requirements not met") => {
+  const handleReject = async (id) => {
+    const reason = prompt("Enter rejection reason:", "Position filled or requirements not met");
+    if (reason === null) return;
+    
     setProcessingId(id);
     try {
-      await companyApi.respondToApplication(id, "reject", rejectionReason);
+      await applicationApi.companyResponse(id, "reject", reason);
       await loadApplications();
     } catch (err) {
-      setError(err.response?.data?.message || err.message);
+      setError(err.message);
     } finally {
       setProcessingId(null);
     }
@@ -105,21 +102,18 @@ export default function StudentRequests() {
 
   return (
     <div className="sr-page">
-      {/* Header */}
       <div className="sr-header">
         <h1 className="sr-title">Student Approval Requests</h1>
         <p className="sr-sub">Students seeking company approval before applying to the university.</p>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="sr-error">
-          {error}
+          <span>{error}</span>
           <button onClick={loadApplications} className="sr-retry-btn">Retry</button>
         </div>
       )}
 
-      {/* Tab Switcher */}
       <div className="sr-tabs">
         <button
           className={`sr-tab${activeTab === "pending" ? " sr-tab-active" : ""}`}
@@ -137,7 +131,6 @@ export default function StudentRequests() {
         </button>
       </div>
 
-      {/* Loading State */}
       {loading && (
         <div className="sr-loading">
           <div className="sr-spinner"></div>
@@ -145,7 +138,6 @@ export default function StudentRequests() {
         </div>
       )}
 
-      {/* Request List */}
       {!loading && (
         <div className="sr-list">
           {displayList.length === 0 && (
@@ -159,12 +151,10 @@ export default function StudentRequests() {
           {displayList.map((req) => (
             <div key={req.id} className="sr-item">
               <div className="sr-item-main" onClick={() => toggleExpand(req.id)}>
-                {/* Avatar */}
                 <div className="sr-avatar" style={{ background: req.color }}>
                   {req.initials}
                 </div>
 
-                {/* Info */}
                 <div className="sr-info">
                   <div className="sr-name">{req.name}</div>
                   <div className="sr-meta">
@@ -172,7 +162,6 @@ export default function StudentRequests() {
                   </div>
                 </div>
 
-                {/* Status & Actions */}
                 <div className="sr-actions">
                   {req.status === "pending" && (
                     <>
@@ -187,10 +176,7 @@ export default function StudentRequests() {
                       <button
                         className="sr-btn-reject"
                         disabled={processingId === req.id}
-                        onClick={(e) => { e.stopPropagation(); 
-                          const reason = prompt("Enter rejection reason (optional):", "Position filled");
-                          if (reason !== null) handleReject(req.id, reason || "Position filled");
-                        }}
+                        onClick={(e) => { e.stopPropagation(); handleReject(req.id); }}
                       >
                         <FaTimes size={11} /> {processingId === req.id ? "..." : "Reject"}
                       </button>
@@ -208,7 +194,6 @@ export default function StudentRequests() {
                 </div>
               </div>
 
-              {/* Expanded Details */}
               {expandedId === req.id && (
                 <div className="sr-detail">
                   <div className="sr-detail-grid">
@@ -222,7 +207,7 @@ export default function StudentRequests() {
                     </div>
                     <div className="sr-detail-item">
                       <span className="sr-detail-label">Major</span>
-                      <span className="sr-detail-val">{req.major || "N/A"}</span>
+                      <span className="sr-detail-val">{req.major}</span>
                     </div>
                     <div className="sr-detail-item">
                       <span className="sr-detail-label">Position Applied</span>
