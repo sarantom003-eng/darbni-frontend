@@ -1,208 +1,249 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaCheck, FaTimes, FaChevronRight, FaClock, FaCheckCircle } from "react-icons/fa";
+import { companyApi } from "../api/companyApi";
 
-const MOCK_REQUESTS = [
-  {
-    id: 1,
-    name: "Ahmad Nasser",
-    initials: "AN",
-    color: "#6c47ff",
-    university: "PTUK",
-    position: "Frontend Development Intern",
-    date: "Mar 5, 2026",
-    status: "pending",
-  },
-  {
-    id: 2,
-    name: "Lina Qasim",
-    initials: "LQ",
-    color: "#4a3fa0",
-    university: "An-Najah",
-    position: "Network Security Intern",
-    date: "Mar 4, 2026",
-    status: "pending",
-  },
-  {
-    id: 3,
-    name: "Sara Tomeh",
-    initials: "ST",
-    color: "#27ae60",
-    university: "Birzeit",
-    position: "Data Science Intern",
-    date: "Feb 28, 2026",
-    status: "approved",
-    resolvedDate: "Mar 2, 2026",
-  },
-  {
-    id: 4,
-    name: "Khaled Hasan",
-    initials: "KH",
-    color: "#e74c3c",
-    university: "PPU",
-    position: "Cybersecurity Intern",
-    date: "Feb 25, 2026",
-    status: "rejected",
-    resolvedDate: "Mar 1, 2026",
-  },
-];
+const getColorForName = (name) => {
+  const colors = ["#6c47ff", "#4a3fa0", "#27ae60", "#e74c3c", "#f39c12", "#1abc9c", "#3498db", "#9b59b6"];
+  const index = name.length ? name.charCodeAt(0) % colors.length : 0;
+  return colors[index];
+};
+
+const mapApplication = (app, statusType) => {
+  const student = app.studentId || {};
+  const training = app.trainingId || {};
+  
+  return {
+    id: app._id,
+    name: `${student.firstName || ""} ${student.lastName || ""}`.trim() || "Unknown",
+    initials: student.firstName ? `${student.firstName[0]}${student.lastName?.[0] || ""}` : "??",
+    color: getColorForName(student.firstName || ""),
+    university: student.university_name || student.universityId?.name || "Unknown",
+    position: training.title || "Unknown Position",
+    date: app.createdAt ? new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
+    status: statusType === "pending" ? "pending" : (app.status === "company_approved" ? "approved" : "rejected"),
+    resolvedDate: app.companyApprovedAt || app.companyRejectedAt 
+      ? new Date(app.companyApprovedAt || app.companyRejectedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : null,
+    rejectionReason: app.companyRejectionReason || null,
+    coverLetter: app.coverLetter || null,
+    major: student.major || "Unknown",
+  };
+};
 
 export default function StudentRequests() {
-  const [requests, setRequests] = useState(MOCK_REQUESTS);
+  const [pending, setPending] = useState([]);
+  const [resolved, setResolved] = useState([]);
   const [activeTab, setActiveTab] = useState("pending");
   const [expandedId, setExpandedId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [processingId, setProcessingId] = useState(null);
 
-  const pending = requests.filter((r) => r.status === "pending");
-  const resolved = requests.filter((r) => r.status !== "pending");
-
-  const displayList = activeTab === "pending" ? pending : resolved;
-
-  const handleApprove = (id) => {
-    setRequests((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? { ...r, status: "approved", resolvedDate: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) }
-          : r
-      )
-    );
+  const loadApplications = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await companyApi.getCompanyApplications();
+      const pendingApps = (response.pending || []).map(app => mapApplication(app, "pending"));
+      const resolvedApps = (response.resolved || []).map(app => mapApplication(app, "resolved"));
+      setPending(pendingApps);
+      setResolved(resolvedApps);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReject = (id) => {
-    setRequests((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? { ...r, status: "rejected", resolvedDate: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) }
-          : r
-      )
-    );
+  useEffect(() => {
+    loadApplications();
+  }, []);
+
+  const handleApprove = async (id) => {
+    setProcessingId(id);
+    try {
+      await companyApi.respondToApplication(id, "approve");
+      await loadApplications();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async (id, rejectionReason) => {
+    setProcessingId(id);
+    try {
+      await companyApi.respondToApplication(id, "reject", rejectionReason);
+      await loadApplications();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const toggleExpand = (id) => {
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
+  const displayList = activeTab === "pending" ? pending : resolved;
+  const pendingCount = pending.length;
+  const resolvedCount = resolved.length;
+
   return (
     <div className="sr-page">
-      {/* Header */}
       <div className="sr-header">
         <h1 className="sr-title">Student Approval Requests</h1>
         <p className="sr-sub">Students seeking company approval before applying to the university.</p>
       </div>
 
-      {/* Tab Switcher */}
+      {error && (
+        <div className="sr-error">
+          {error}
+          <button onClick={loadApplications} className="sr-retry-btn">Retry</button>
+        </div>
+      )}
+
       <div className="sr-tabs">
         <button
           className={`sr-tab${activeTab === "pending" ? " sr-tab-active" : ""}`}
           onClick={() => setActiveTab("pending")}
         >
           <FaClock size={12} />
-          Pending ({pending.length})
+          Pending ({pendingCount})
         </button>
         <button
           className={`sr-tab${activeTab === "resolved" ? " sr-tab-active" : ""}`}
           onClick={() => setActiveTab("resolved")}
         >
           <FaCheckCircle size={12} />
-          Resolved ({resolved.length})
+          Resolved ({resolvedCount})
         </button>
       </div>
 
-      {/* Request List */}
-      <div className="sr-list">
-        {displayList.length === 0 && (
-          <div className="sr-empty">
-            {activeTab === "pending"
-              ? "No pending requests at the moment."
-              : "No resolved requests yet."}
-          </div>
-        )}
+      {loading && (
+        <div className="sr-loading">
+          <div className="sr-spinner"></div>
+          <p>Loading requests...</p>
+        </div>
+      )}
 
-        {displayList.map((req) => (
-          <div key={req.id} className="sr-item">
-            <div className="sr-item-main" onClick={() => toggleExpand(req.id)}>
-              {/* Avatar */}
-              <div className="sr-avatar" style={{ background: req.color }}>
-                {req.initials}
-              </div>
-
-              {/* Info */}
-              <div className="sr-info">
-                <div className="sr-name">{req.name}</div>
-                <div className="sr-meta">
-                  {req.university} · {req.position} · {req.date}
-                </div>
-              </div>
-
-              {/* Status & Actions */}
-              <div className="sr-actions">
-                {req.status === "pending" && (
-                  <>
-                    <span className="sr-status-badge sr-status-pending">Pending</span>
-                    <button
-                      className="sr-btn-approve"
-                      onClick={(e) => { e.stopPropagation(); handleApprove(req.id); }}
-                    >
-                      <FaCheck size={11} /> Approve
-                    </button>
-                    <button
-                      className="sr-btn-reject"
-                      onClick={(e) => { e.stopPropagation(); handleReject(req.id); }}
-                    >
-                      <FaTimes size={11} /> Reject
-                    </button>
-                  </>
-                )}
-                {req.status === "approved" && (
-                  <span className="sr-status-badge sr-status-approved">Approved</span>
-                )}
-                {req.status === "rejected" && (
-                  <span className="sr-status-badge sr-status-rejected">Rejected</span>
-                )}
-                <FaChevronRight
-                  className={`sr-chevron${expandedId === req.id ? " sr-chevron-open" : ""}`}
-                />
-              </div>
+      {!loading && (
+        <div className="sr-list">
+          {displayList.length === 0 && (
+            <div className="sr-empty">
+              {activeTab === "pending"
+                ? "No pending requests at the moment."
+                : "No resolved requests yet."}
             </div>
+          )}
 
-            {/* Expanded Details */}
-            {expandedId === req.id && (
-              <div className="sr-detail">
-                <div className="sr-detail-grid">
-                  <div className="sr-detail-item">
-                    <span className="sr-detail-label">Student Name</span>
-                    <span className="sr-detail-val">{req.name}</span>
+          {displayList.map((req) => (
+            <div key={req.id} className="sr-item">
+              <div className="sr-item-main" onClick={() => toggleExpand(req.id)}>
+                <div className="sr-avatar" style={{ background: req.color }}>
+                  {req.initials}
+                </div>
+
+                <div className="sr-info">
+                  <div className="sr-name">{req.name}</div>
+                  <div className="sr-meta">
+                    {req.university} · {req.position} · {req.date}
                   </div>
-                  <div className="sr-detail-item">
-                    <span className="sr-detail-label">University</span>
-                    <span className="sr-detail-val">{req.university}</span>
-                  </div>
-                  <div className="sr-detail-item">
-                    <span className="sr-detail-label">Position Applied</span>
-                    <span className="sr-detail-val">{req.position}</span>
-                  </div>
-                  <div className="sr-detail-item">
-                    <span className="sr-detail-label">Request Date</span>
-                    <span className="sr-detail-val">{req.date}</span>
-                  </div>
-                  <div className="sr-detail-item">
-                    <span className="sr-detail-label">Status</span>
-                    <span className="sr-detail-val" style={{
-                      color: req.status === "approved" ? "#27ae60" : req.status === "rejected" ? "#e74c3c" : "#b8860b",
-                      fontWeight: 700,
-                      textTransform: "capitalize"
-                    }}>{req.status}</span>
-                  </div>
-                  {req.resolvedDate && (
-                    <div className="sr-detail-item">
-                      <span className="sr-detail-label">Resolved Date</span>
-                      <span className="sr-detail-val">{req.resolvedDate}</span>
-                    </div>
+                </div>
+
+                <div className="sr-actions">
+                  {req.status === "pending" && (
+                    <>
+                      <span className="sr-status-badge sr-status-pending">Pending</span>
+                      <button
+                        className="sr-btn-approve"
+                        disabled={processingId === req.id}
+                        onClick={(e) => { e.stopPropagation(); handleApprove(req.id); }}
+                      >
+                        <FaCheck size={11} /> {processingId === req.id ? "..." : "Approve"}
+                      </button>
+                      <button
+                        className="sr-btn-reject"
+                        disabled={processingId === req.id}
+                        onClick={(e) => { e.stopPropagation(); 
+                          const reason = prompt("Enter rejection reason (optional):", "Position filled");
+                          if (reason !== null) handleReject(req.id, reason || "Position filled");
+                        }}
+                      >
+                        <FaTimes size={11} /> {processingId === req.id ? "..." : "Reject"}
+                      </button>
+                    </>
                   )}
+                  {req.status === "approved" && (
+                    <span className="sr-status-badge sr-status-approved">Approved</span>
+                  )}
+                  {req.status === "rejected" && (
+                    <span className="sr-status-badge sr-status-rejected">Rejected</span>
+                  )}
+                  <FaChevronRight
+                    className={`sr-chevron${expandedId === req.id ? " sr-chevron-open" : ""}`}
+                  />
                 </div>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+
+              {expandedId === req.id && (
+                <div className="sr-detail">
+                  <div className="sr-detail-grid">
+                    <div className="sr-detail-item">
+                      <span className="sr-detail-label">Student Name</span>
+                      <span className="sr-detail-val">{req.name}</span>
+                    </div>
+                    <div className="sr-detail-item">
+                      <span className="sr-detail-label">University</span>
+                      <span className="sr-detail-val">{req.university}</span>
+                    </div>
+                    <div className="sr-detail-item">
+                      <span className="sr-detail-label">Major</span>
+                      <span className="sr-detail-val">{req.major || "N/A"}</span>
+                    </div>
+                    <div className="sr-detail-item">
+                      <span className="sr-detail-label">Position Applied</span>
+                      <span className="sr-detail-val">{req.position}</span>
+                    </div>
+                    <div className="sr-detail-item">
+                      <span className="sr-detail-label">Request Date</span>
+                      <span className="sr-detail-val">{req.date}</span>
+                    </div>
+                    <div className="sr-detail-item">
+                      <span className="sr-detail-label">Status</span>
+                      <span className="sr-detail-val" style={{
+                        color: req.status === "approved" ? "#27ae60" : req.status === "rejected" ? "#e74c3c" : "#b8860b",
+                        fontWeight: 700,
+                        textTransform: "capitalize"
+                      }}>{req.status}</span>
+                    </div>
+                    {req.resolvedDate && (
+                      <div className="sr-detail-item">
+                        <span className="sr-detail-label">Resolved Date</span>
+                        <span className="sr-detail-val">{req.resolvedDate}</span>
+                      </div>
+                    )}
+                    {req.rejectionReason && req.status === "rejected" && (
+                      <div className="sr-detail-item sr-detail-full">
+                        <span className="sr-detail-label">Rejection Reason</span>
+                        <span className="sr-detail-val" style={{ color: "#e74c3c" }}>{req.rejectionReason}</span>
+                      </div>
+                    )}
+                    {req.coverLetter && (
+                      <div className="sr-detail-item sr-detail-full">
+                        <span className="sr-detail-label">Cover Letter</span>
+                        <span className="sr-detail-val">{req.coverLetter}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
