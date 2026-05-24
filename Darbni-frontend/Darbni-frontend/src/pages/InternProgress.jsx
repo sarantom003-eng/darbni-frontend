@@ -1,106 +1,152 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaChevronRight, FaChevronDown, FaCheck, FaRegCommentDots } from "react-icons/fa";
+import { applicationApi, logsApi } from "../api/client";
 
-const MOCK_INTERNS = [
-  {
-    id: 1, name: "Sara Tomeh", initials: "ST", color: "#7c5cbf",
-    department: "Data Science", pendingCount: 6,
-    hoursCompleted: 120, targetHours: 200,
-    weeks: [
-      {
-        id: 1, label: "Week 1", dates: "Mar 3 - Mar 7", totalHours: 30, days: 5, status: "confirmed",
-        entries: [
-          { day: "Sunday", date: "Mar 3", task: "Data cleaning with Pandas", hours: 6, status: "confirmed" },
-          { day: "Monday", date: "Mar 4", task: "Explored datasets", hours: 6, status: "confirmed" },
-          { day: "Tuesday", date: "Mar 5", task: "Data visualization", hours: 6, status: "confirmed" },
-          { day: "Wednesday", date: "Mar 6", task: "Feature engineering", hours: 6, status: "confirmed" },
-          { day: "Thursday", date: "Mar 7", task: "Documentation", hours: 6, status: "confirmed" },
-        ],
-      },
-      {
-        id: 2, label: "Week 2", dates: "Mar 10 - Mar 14", totalHours: 28, days: 5, status: "confirmed",
-        entries: [
-          { day: "Sunday", date: "Mar 10", task: "SQL queries", hours: 6, status: "confirmed" },
-          { day: "Monday", date: "Mar 11", task: "Database design", hours: 6, status: "confirmed" },
-          { day: "Tuesday", date: "Mar 12", task: "API integration", hours: 5, status: "confirmed" },
-          { day: "Wednesday", date: "Mar 13", task: "Testing", hours: 5, status: "confirmed" },
-          { day: "Thursday", date: "Mar 14", task: "Report writing", hours: 6, status: "confirmed" },
-        ],
-      },
-      {
-        id: 3, label: "Week 3", dates: "Mar 17 - Mar 21", totalHours: 32, days: 5, status: "pending",
-        entries: [
-          { day: "Sunday", date: "Mar 17", task: "ML model planning", hours: 7, status: "pending" },
-          { day: "Monday", date: "Mar 18", task: "Data preprocessing for ML", hours: 7, status: "pending" },
-          { day: "Tuesday", date: "Mar 19", task: "Model training", hours: 6, status: "pending" },
-          { day: "Wednesday", date: "Mar 20", task: "Model evaluation", hours: 6, status: "pending" },
-          { day: "Thursday", date: "Mar 21", task: "Results documentation", hours: 6, status: "pending" },
-        ],
-      },
-    ],
-  },
-  {
-    id: 2, name: "Rami Khalil", initials: "RK", color: "#e67e22",
-    department: "Web Development", pendingCount: 3,
-    hoursCompleted: 80, targetHours: 200,
-    weeks: [
-      {
-        id: 1, label: "Week 1", dates: "Mar 3 - Mar 7", totalHours: 35, days: 5, status: "confirmed",
-        entries: [
-          { day: "Sunday", date: "Mar 3", task: "HTML/CSS review", hours: 7, status: "confirmed" },
-          { day: "Monday", date: "Mar 4", task: "JavaScript basics", hours: 7, status: "confirmed" },
-          { day: "Tuesday", date: "Mar 5", task: "React components", hours: 7, status: "confirmed" },
-          { day: "Wednesday", date: "Mar 6", task: "State management", hours: 7, status: "confirmed" },
-          { day: "Thursday", date: "Mar 7", task: "Routing setup", hours: 7, status: "confirmed" },
-        ],
-      },
-      {
-        id: 2, label: "Week 2", dates: "Mar 10 - Mar 14", totalHours: 30, days: 5, status: "pending",
-        entries: [
-          { day: "Sunday", date: "Mar 10", task: "API integration", hours: 6, status: "pending" },
-          { day: "Monday", date: "Mar 11", task: "Form validation", hours: 6, status: "pending" },
-          { day: "Tuesday", date: "Mar 12", task: "Authentication flow", hours: 6, status: "pending" },
-          { day: "Wednesday", date: "Mar 13", task: "Dashboard layout", hours: 6, status: "pending" },
-          { day: "Thursday", date: "Mar 14", task: "Code review", hours: 6, status: "pending" },
-        ],
-      },
-    ],
-  },
-];
+// ✅ تحويل بيانات المتدرب من API إلى تنسيق الواجهة
+const mapIntern = (app) => {
+  const student = app.studentId || {};
+  const training = app.trainingId || {};
+  
+  const firstName = student.firstName || "";
+  const lastName = student.lastName || "";
+  const fullName = `${firstName} ${lastName}`.trim() || "Unknown Student";
+  
+  return {
+    id: app._id,
+    applicationId: app._id,
+    name: fullName,
+    initials: firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
+    color: ["#7c5cbf", "#e67e22", "#27ae60", "#e74c3c", "#3498db"][Math.floor(Math.random() * 5)],
+    department: student.major || "N/A",
+    pendingCount: 0, // سيتم تحديثه من logs
+    hoursCompleted: 0,
+    targetHours: training.totalHours || 160,
+    weeks: [], // سيتم بناؤه من logs
+  };
+};
+
+// ✅ تحويل الـ logs إلى هيكل أسابيع
+const buildWeeksFromLogs = (logs, stats) => {
+  if (!logs || logs.length === 0) return [];
+  
+  // تجميع الـ logs حسب الأسبوع
+  const weeksMap = new Map();
+  
+  logs.forEach(log => {
+    const date = new Date(log.log_date);
+    const weekNumber = getWeekNumber(date);
+    const weekKey = `${date.getFullYear()}-W${weekNumber}`;
+    
+    if (!weeksMap.has(weekKey)) {
+      weeksMap.set(weekKey, {
+        id: weekKey,
+        label: `Week ${weeksMap.size + 1}`,
+        dates: getWeekRange(date),
+        totalHours: 0,
+        days: 0,
+        status: "pending",
+        entries: [],
+      });
+    }
+    
+    const week = weeksMap.get(weekKey);
+    week.totalHours += log.hours;
+    week.days++;
+    week.entries.push({
+      day: date.toLocaleDateString("en-US", { weekday: "long" }),
+      date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      task: log.tasks_completed,
+      hours: log.hours,
+      status: log.status === "confirmed" ? "confirmed" : "pending",
+      logId: log._id,
+    });
+    
+    // ترتيب entries حسب التاريخ
+    week.entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // تحديد حالة الأسبوع
+    const allConfirmed = week.entries.every(e => e.status === "confirmed");
+    week.status = allConfirmed ? "confirmed" : "pending";
+  });
+  
+  return Array.from(weeksMap.values());
+};
+
+const getWeekNumber = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+};
+
+const getWeekRange = (date) => {
+  const start = new Date(date);
+  start.setDate(date.getDate() - date.getDay());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+};
 
 /* ── Modal ── */
-function InternModal({ intern, onClose }) {
+function InternModal({ intern, onClose, onRefresh }) {
   const [expandedWeek, setExpandedWeek] = useState(null);
-  const [weeks, setWeeks] = useState(intern.weeks);
+  const [weeks, setWeeks] = useState(intern.weeks || []);
   const [feedbackTarget, setFeedbackTarget] = useState(null);
   const [feedbackText, setFeedbackText] = useState("");
+  const [processingId, setProcessingId] = useState(null);
 
   const progress = Math.round((intern.hoursCompleted / intern.targetHours) * 100);
 
-  const handleConfirmEntry = (weekId, entryIdx) => {
-    setWeeks((prev) =>
-      prev.map((w) =>
-        w.id === weekId
-          ? {
-              ...w,
-              entries: w.entries.map((e, i) =>
-                i === entryIdx ? { ...e, status: "confirmed" } : e
-              ),
-              status: w.entries.every((e, i) =>
-                i === entryIdx ? true : e.status === "confirmed"
-              )
-                ? "confirmed"
-                : w.status,
-            }
-          : w
-      )
-    );
+  // ✅ تأكيد سجل (Log)
+  const handleConfirmEntry = async (weekId, entryIdx, logId) => {
+    setProcessingId(logId);
+    try {
+      await logsApi.review(logId, "confirm");
+      if (onRefresh) await onRefresh();
+      // تحديث local state
+      setWeeks(prev =>
+        prev.map(w =>
+          w.id === weekId
+            ? {
+                ...w,
+                entries: w.entries.map((e, i) =>
+                  i === entryIdx ? { ...e, status: "confirmed" } : e
+                ),
+                status: w.entries.every((e, i) =>
+                  i === entryIdx ? true : e.status === "confirmed"
+                ) ? "confirmed" : w.status,
+              }
+            : w
+        )
+      );
+    } catch (err) {
+      console.error("Failed to confirm log:", err);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // ✅ إرسال Feedback
+  const handleSendFeedback = async () => {
+    if (!feedbackTarget) return;
+    const { logId } = feedbackTarget;
+    setProcessingId(logId);
+    try {
+      await logsApi.review(logId, "feedback", feedbackText);
+      if (onRefresh) await onRefresh();
+      setFeedbackTarget(null);
+      setFeedbackText("");
+    } catch (err) {
+      console.error("Failed to send feedback:", err);
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   return (
     <div className="ip-overlay" onClick={onClose}>
       <div className="ip-modal" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div className="ip-modal-head">
           <div className="ip-modal-who">
             <div className="ip-avatar" style={{ background: intern.color }}>{intern.initials}</div>
@@ -109,7 +155,6 @@ function InternModal({ intern, onClose }) {
           <button className="ip-modal-x" onClick={onClose}>✕</button>
         </div>
 
-        {/* Stats */}
         <div className="ip-stats">
           <div className="ip-stat">
             <span className="ip-stat-num">{intern.hoursCompleted}</span>
@@ -125,14 +170,12 @@ function InternModal({ intern, onClose }) {
           </div>
         </div>
 
-        {/* Progress bar */}
         <div className="ip-bar-wrap">
           <div className="ip-bar-bg">
             <div className="ip-bar-fill" style={{ width: `${progress}%` }} />
           </div>
         </div>
 
-        {/* Weekly Schedule Log */}
         <h4 className="ip-log-title">Weekly Schedule Log</h4>
 
         <div className="ip-weeks">
@@ -140,10 +183,7 @@ function InternModal({ intern, onClose }) {
             const isOpen = expandedWeek === week.id;
             return (
               <div key={week.id} className="ip-week">
-                <div
-                  className="ip-week-head"
-                  onClick={() => setExpandedWeek(isOpen ? null : week.id)}
-                >
+                <div className="ip-week-head" onClick={() => setExpandedWeek(isOpen ? null : week.id)}>
                   <div className="ip-week-left">
                     {isOpen ? <FaChevronDown size={10} /> : <FaChevronRight size={10} />}
                     <div>
@@ -169,7 +209,7 @@ function InternModal({ intern, onClose }) {
                           <th>Tasks Completed</th>
                           <th>Hours</th>
                           <th>Status</th>
-                          {week.status === "pending" && <th>Actions</th>}
+                          <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -184,31 +224,27 @@ function InternModal({ intern, onClose }) {
                                 {entry.status === "confirmed" ? "Confirmed" : "Pending"}
                               </span>
                             </td>
-                            {week.status === "pending" && (
-                              <td className="ip-td-actions">
-                                {entry.status === "pending" ? (
-                                  <>
-                                    <button
-                                      className="ip-confirm-btn"
-                                      onClick={() => handleConfirmEntry(week.id, idx)}
-                                    >
-                                      <FaCheck size={10} /> Confirm
-                                    </button>
-                                    <button
-                                      className="ip-feedback-btn"
-                                      onClick={() => {
-                                        setFeedbackTarget({ weekId: week.id, entryIdx: idx });
-                                        setFeedbackText("");
-                                      }}
-                                    >
-                                      <FaRegCommentDots size={10} /> Feedback
-                                    </button>
-                                  </>
-                                ) : (
-                                  <span className="ip-done-text">✓</span>
-                                )}
-                              </td>
-                            )}
+                            <td className="ip-td-actions">
+                              {entry.status === "pending" ? (
+                                <>
+                                  <button
+                                    className="ip-confirm-btn"
+                                    disabled={processingId === entry.logId}
+                                    onClick={() => handleConfirmEntry(week.id, idx, entry.logId)}
+                                  >
+                                    <FaCheck size={10} /> {processingId === entry.logId ? "..." : "Confirm"}
+                                  </button>
+                                  <button
+                                    className="ip-feedback-btn"
+                                    onClick={() => setFeedbackTarget({ logId: entry.logId, entryIdx: idx })}
+                                  >
+                                    <FaRegCommentDots size={10} /> Feedback
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="ip-done-text">✓</span>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -218,7 +254,7 @@ function InternModal({ intern, onClose }) {
                           <td></td>
                           <td><strong>{week.totalHours}h</strong></td>
                           <td></td>
-                          {week.status === "pending" && <td></td>}
+                          <td></td>
                         </tr>
                       </tfoot>
                     </table>
@@ -233,7 +269,7 @@ function InternModal({ intern, onClose }) {
           <button className="ip-close-btn" onClick={onClose}>Close</button>
         </div>
 
-        {/* Feedback sub-modal */}
+        {/* Feedback modal */}
         {feedbackTarget && (
           <div className="ip-fb-overlay" onClick={() => setFeedbackTarget(null)}>
             <div className="ip-fb-modal" onClick={(e) => e.stopPropagation()}>
@@ -250,15 +286,8 @@ function InternModal({ intern, onClose }) {
               />
               <div className="ip-fb-actions">
                 <button className="ip-fb-cancel" onClick={() => setFeedbackTarget(null)}>Cancel</button>
-                <button
-                  className="ip-fb-send"
-                  onClick={() => {
-                    // TODO: handle feedback submission
-                    setFeedbackTarget(null);
-                    setFeedbackText("");
-                  }}
-                >
-                  Send Feedback
+                <button className="ip-fb-send" onClick={handleSendFeedback} disabled={processingId}>
+                  {processingId ? "Sending..." : "Send Feedback"}
                 </button>
               </div>
             </div>
@@ -271,7 +300,53 @@ function InternModal({ intern, onClose }) {
 
 /* ── Page ── */
 export default function InternProgress() {
+  const [interns, setInterns] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // ✅ جلب المتدربين النشطين من API
+  const loadActiveInterns = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await applicationApi.company();
+      const activeApps = response.active || [];
+      
+      const mappedInterns = await Promise.all(
+        activeApps.map(async (app) => {
+          const intern = mapIntern(app);
+          // جلب السجلات لكل متدرب
+          try {
+            const logsResponse = await logsApi.getByApplication(app._id);
+            const stats = logsResponse.stats || {};
+            const logs = logsResponse.logs || [];
+            
+            intern.hoursCompleted = stats.confirmedHours || 0;
+            intern.pendingCount = stats.pendingLogs || 0;
+            intern.weeks = buildWeeksFromLogs(logs, stats);
+          } catch (err) {
+            console.error(`Failed to load logs for ${app._id}:`, err);
+          }
+          return intern;
+        })
+      );
+      
+      setInterns(mappedInterns);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadActiveInterns();
+  }, []);
+
+  const refreshData = async () => {
+    await loadActiveInterns();
+  };
 
   return (
     <div className="ip-page">
@@ -280,36 +355,55 @@ export default function InternProgress() {
         <p className="ip-sub">Review daily logs and confirm or give feedback on intern progress.</p>
       </div>
 
-      <div className="ip-list">
-        {MOCK_INTERNS.map((intern) => {
-          const pct = Math.round((intern.hoursCompleted / intern.targetHours) * 100);
-          return (
-            <div key={intern.id} className="ip-card" onClick={() => setSelected(intern)}>
-              <div className="ip-avatar" style={{ background: intern.color }}>
-                {intern.initials}
-              </div>
-              <div className="ip-card-body">
-                <div className="ip-card-top">
-                  <span className="ip-card-name">{intern.name}</span>
-                  <span className="ip-card-dept">· {intern.department} ·</span>
-                  <span className="ip-pending-badge">{intern.pendingCount} pending</span>
+      {error && (
+        <div className="ip-error">
+          <span>{error}</span>
+          <button onClick={refreshData} className="ip-retry-btn">Retry</button>
+        </div>
+      )}
+
+      {loading && (
+        <div className="ip-loading">
+          <div className="ip-spinner"></div>
+          <p>Loading interns...</p>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="ip-list">
+          {interns.length === 0 && (
+            <div className="ip-empty">No active interns at the moment.</div>
+          )}
+          {interns.map((intern) => {
+            const pct = Math.round((intern.hoursCompleted / intern.targetHours) * 100);
+            return (
+              <div key={intern.id} className="ip-card" onClick={() => setSelected(intern)}>
+                <div className="ip-avatar" style={{ background: intern.color }}>
+                  {intern.initials}
                 </div>
-                <div className="ip-card-bar-row">
-                  <div className="ip-card-bar-bg">
-                    <div className="ip-card-bar-fill" style={{ width: `${pct}%` }} />
+                <div className="ip-card-body">
+                  <div className="ip-card-top">
+                    <span className="ip-card-name">{intern.name}</span>
+                    <span className="ip-card-dept">· {intern.department} ·</span>
+                    <span className="ip-pending-badge">{intern.pendingCount} pending</span>
                   </div>
-                  <span className="ip-card-pct">⌐ {pct}%</span>
+                  <div className="ip-card-bar-row">
+                    <div className="ip-card-bar-bg">
+                      <div className="ip-card-bar-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="ip-card-pct">⌐ {pct}%</span>
+                  </div>
+                  <span className="ip-card-hours">◎ {intern.hoursCompleted}/{intern.targetHours} hours</span>
                 </div>
-                <span className="ip-card-hours">◎ {intern.hoursCompleted}/{intern.targetHours} hours</span>
+                <FaChevronRight className="ip-card-chev" size={14} />
               </div>
-              <FaChevronRight className="ip-card-chev" size={14} />
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {selected && (
-        <InternModal intern={selected} onClose={() => setSelected(null)} />
+        <InternModal intern={selected} onClose={() => setSelected(null)} onRefresh={refreshData} />
       )}
     </div>
   );
