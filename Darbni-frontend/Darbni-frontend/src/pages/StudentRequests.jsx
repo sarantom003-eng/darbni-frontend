@@ -42,7 +42,7 @@ const mapApplication = (app, statusType) => {
   };
 };
 
-// ✅ Modal للرفض
+// ✅ Modal للرفض (زي الصورة)
 function RejectModal({ studentName, onClose, onConfirm }) {
   const [reason, setReason] = useState("");
 
