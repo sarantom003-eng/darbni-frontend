@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FaCheck, FaTimes, FaChevronRight, FaClock, FaCheckCircle } from "react-icons/fa";
-import { applicationApi } from "../api/client";  // ✅ بس applicationApi
+import { applicationApi } from "../api/client";
 
 const getColorForName = (name) => {
   const colors = ["#6c47ff", "#4a3fa0", "#27ae60", "#e74c3c", "#f39c12", "#1abc9c", "#3498db", "#9b59b6"];
@@ -8,6 +8,7 @@ const getColorForName = (name) => {
   return colors[index];
 };
 
+// ✅ mapApplication: كل الفيلدات متطابقة مع API
 const mapApplication = (app, statusType) => {
   const student = app.studentId || {};
   const training = app.trainingId || {};
@@ -16,34 +17,29 @@ const mapApplication = (app, statusType) => {
   const lastName = student.lastName || "";
   const fullName = `${firstName} ${lastName}`.trim() || "Unknown Student";
   
-  // ✅ تحديد الحالة المعروضة
   let displayStatus = "pending";
   if (statusType === "resolved") {
-    if (app.status === "company_approved" || app.status === "university_approved" || 
-        app.status === "company_final_approved" || app.status === "completed") {
-      displayStatus = "approved";
-    } else if (app.status === "company_rejected" || app.status === "university_rejected") {
-      displayStatus = "rejected";
-    }
+    if (app.status === "company_approved") displayStatus = "approved";
+    else if (app.status === "company_rejected") displayStatus = "rejected";
   }
   
   return {
-    id: app._id,
-    name: fullName,
+    id: app._id,                                           // ✅
+    name: fullName,                                        // ✅
     initials: firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
     color: getColorForName(firstName || fullName),
-    university: student.university_name || student.universityId?.name || "Unknown",
-    position: training.title || "Unknown Position",
-    date: app.createdAt 
+    university: student.university_name || student.universityId?.name || "Unknown", // ✅
+    position: training.title || "Unknown Position",        // ✅
+    date: app.createdAt                                    // ✅
       ? new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : "",
     status: displayStatus,
-    resolvedDate: app.companyApprovedAt || app.companyRejectedAt  // ✅ الاثنين
+    resolvedDate: app.companyApprovedAt || app.companyRejectedAt  // ✅
       ? new Date(app.companyApprovedAt || app.companyRejectedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : null,
-    rejectionReason: app.companyRejectionReason || null,
-    coverLetter: app.coverLetter || null,
-    major: student.major || "N/A",
+    rejectionReason: app.companyRejectionReason || null,   // ✅
+    coverLetter: app.coverLetter || null,                  // ✅
+    major: student.major || "N/A",                         // ✅
   };
 };
 
@@ -56,11 +52,12 @@ export default function StudentRequests() {
   const [error, setError] = useState("");
   const [processingId, setProcessingId] = useState(null);
 
+  // ✅ استخدام applicationApi.company() من client.js
   const loadApplications = async () => {
     setLoading(true);
     setError("");
     try {
-      const response = await applicationApi.company();
+      const response = await applicationApi.company();     // ✅ GET /applications/company
       console.log("🔍 API Response:", response);
       
       const pendingApps = (response.pending || []).map(app => mapApplication(app, "pending"));
@@ -80,11 +77,11 @@ export default function StudentRequests() {
     loadApplications();
   }, []);
 
-  // ✅ استخدام applicationApi.companyResponse
+  // ✅ استخدام applicationApi.companyResponse() من client.js
   const handleApprove = async (id) => {
     setProcessingId(id);
     try {
-      await applicationApi.companyResponse(id, "approve");
+      await applicationApi.companyResponse(id, "approve");  // ✅ PATCH مع action=approve
       await loadApplications();
     } catch (err) {
       setError(err.message);
@@ -93,14 +90,14 @@ export default function StudentRequests() {
     }
   };
 
-  // ✅ استخدام applicationApi.companyResponse مع سبب الرفض
+  // ✅ استخدام applicationApi.companyResponse() مع سبب الرفض
   const handleReject = async (id) => {
     const reason = prompt("Enter rejection reason:", "Position filled or requirements not met");
     if (reason === null) return;
     
     setProcessingId(id);
     try {
-      await applicationApi.companyResponse(id, "reject", reason);
+      await applicationApi.companyResponse(id, "reject", reason);  // ✅ PATCH مع action=reject + reason
       await loadApplications();
     } catch (err) {
       setError(err.message);
