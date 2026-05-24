@@ -39,39 +39,8 @@ const mapApplication = (app, statusType) => {
     rejectionReason: app.companyRejectionReason || null,
     coverLetter: app.coverLetter || null,
     major: student.major || "N/A",
-    rawStatus: app.status,
   };
 };
-
-// ✅ Modal للرفض (زي تصميم الجامعة)
-function RejectModal({ studentName, onClose, onConfirm }) {
-  const [reason, setReason] = useState("");
-
-  return (
-    <div className="ur-overlay" onClick={onClose}>
-      <div className="ur-modal" style={{ maxWidth: 450 }} onClick={(e) => e.stopPropagation()}>
-        <button className="ur-modal-x" onClick={onClose}>✕</button>
-        <h3 className="reject-modal-title">Reject Request</h3>
-        <p className="reject-modal-message">
-          Rejecting request from <strong>{studentName}</strong>. You can provide an optional reason.
-        </p>
-        
-        <textarea
-          className="reject-textarea"
-          placeholder="Reason for rejection (optional)..."
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          rows={3}
-        />
-        
-        <div className="reject-modal-actions">
-          <button className="reject-btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="reject-btn-confirm" onClick={() => onConfirm(reason)}>Reject</button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function StudentRequests() {
   const [pending, setPending] = useState([]);
@@ -81,22 +50,17 @@ export default function StudentRequests() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [processingId, setProcessingId] = useState(null);
-  const [rejectModal, setRejectModal] = useState({ open: false, id: null, name: "" });
 
   const loadApplications = async () => {
     setLoading(true);
     setError("");
     try {
       const response = await applicationApi.company();
-      console.log("🔍 API Response:", response);
-      
       const pendingApps = (response.pending || []).map(app => mapApplication(app, "pending"));
       const resolvedApps = (response.resolved || []).map(app => mapApplication(app, "resolved"));
-      
       setPending(pendingApps);
       setResolved(resolvedApps);
     } catch (err) {
-      console.error("❌ Error:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -119,11 +83,14 @@ export default function StudentRequests() {
     }
   };
 
-  const handleReject = async (id, reason) => {
+  // ✅ استخدام prompt (شغال 100% وما بيحتاج CSS)
+  const handleReject = async (id) => {
+    const reason = prompt("Enter rejection reason:", "Position filled or requirements not met");
+    if (reason === null) return;
+    
     setProcessingId(id);
     try {
-      await applicationApi.companyResponse(id, "reject", reason || "No reason provided");
-      setRejectModal({ open: false, id: null, name: "" });
+      await applicationApi.companyResponse(id, "reject", reason);
       await loadApplications();
     } catch (err) {
       setError(err.message);
@@ -216,10 +183,7 @@ export default function StudentRequests() {
                       <button
                         className="sr-btn-reject"
                         disabled={processingId === req.id}
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          setRejectModal({ open: true, id: req.id, name: req.name });
-                        }}
+                        onClick={(e) => { e.stopPropagation(); handleReject(req.id); }}
                       >
                         <FaTimes size={11} /> {processingId === req.id ? "..." : "Reject"}
                       </button>
@@ -292,14 +256,6 @@ export default function StudentRequests() {
             </div>
           ))}
         </div>
-      )}
-
-      {rejectModal.open && (
-        <RejectModal
-          studentName={rejectModal.name}
-          onClose={() => setRejectModal({ open: false, id: null, name: "" })}
-          onConfirm={(reason) => handleReject(rejectModal.id, reason)}
-        />
       )}
     </div>
   );
