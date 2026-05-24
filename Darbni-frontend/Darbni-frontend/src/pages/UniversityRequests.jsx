@@ -1,51 +1,59 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaCheck, FaClock, FaCheckCircle, FaBan, FaTimes } from "react-icons/fa";
+import { applicationApi, api } from "../api/client";
 
-const MOCK = [
-  {
-    id: 1, name: "Ahmad Nasser", initials: "AN", color: "#6c47ff",
-    university: "Palestine Technical University - Khadoorie",
-    position: "Frontend Development Intern", specialization: "Computer Science",
-    submittedDate: "Mar 6, 2026", letterDate: "March 6, 2026",
-    startDate: "Apr 1, 2026", hours: 160,
-    supervisor: "Dr. Samira Khalid", status: "pending",
-  },
-  {
-    id: 2, name: "Khaled Hasan", initials: "KH", color: "#4a3fa0",
-    university: "An-Najah National University",
-    position: "Network Security Intern", specialization: "Computer Engineering",
-    submittedDate: "Mar 5, 2026", letterDate: "March 5, 2026",
-    startDate: "Apr 1, 2026", hours: 160,
-    supervisor: "Dr. Ahmad Saleh", status: "pending",
-  },
-  {
-    id: 3, name: "Layla Haddad", initials: "LH", color: "#e67e22",
-    university: "Palestine Technical University - Khadoorie",
-    position: "Mobile App Intern", specialization: "Software Engineering",
-    submittedDate: "Mar 8, 2026", letterDate: "March 8, 2026",
-    startDate: "Apr 5, 2026", hours: 160,
-    supervisor: "Dr. Samira Khalid", status: "pending",
-  },
-  {
-    id: 4, name: "Sara Tomeh", initials: "ST", color: "#27ae60",
-    university: "Birzeit University",
-    position: "Data Science Intern", specialization: "Data Science",
-    submittedDate: "Feb 28, 2026", letterDate: "February 28, 2026",
-    startDate: "Mar 15, 2026", hours: 160,
-    supervisor: "Dr. Nadia Karam", status: "resolved",
-  },
-  {
-    id: 5, name: "Omar Khalil", initials: "OK", color: "#e74c3c",
-    university: "Palestine Polytechnic University",
-    position: "Backend Development Intern", specialization: "Computer Science",
-    submittedDate: "Feb 20, 2026", letterDate: "February 20, 2026",
-    startDate: "Mar 10, 2026", hours: 160,
-    supervisor: "Dr. Fadi Mansour", status: "cancelled",
-  },
-];
+const getColorForName = (name) => {
+  const colors = ["#6c47ff", "#4a3fa0", "#27ae60", "#e74c3c", "#f39c12", "#1abc9c", "#3498db", "#9b59b6"];
+  const index = name.length ? name.charCodeAt(0) % colors.length : 0;
+  return colors[index];
+};
+
+const mapApplication = (app) => {
+  const student = app.studentId || {};
+  const training = app.trainingId || {};
+  const officialLetter = app.officialLetter || {};
+  const officialForm = app.officialForm || {};
+
+  const firstName = student.firstName || "";
+  const lastName = student.lastName || "";
+  const fullName = `${firstName} ${lastName}`.trim() || "Unknown Student";
+
+  return {
+    id: app._id,
+    name: fullName,
+    initials: firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
+    color: getColorForName(firstName || fullName),
+    university: student.university_name || student.universityId?.name || "Unknown",
+    position: training.title || "Unknown Position",
+    specialization: student.major || officialForm.major || "N/A",
+    submittedDate: app.submittedToUniversityAt
+      ? new Date(app.submittedToUniversityAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : app.createdAt
+      ? new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "",
+    letterDate: app.submittedToUniversityAt
+      ? new Date(app.submittedToUniversityAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+      : "",
+    startDate: officialLetter.startDate
+      ? new Date(officialLetter.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "TBD",
+    hours: training.totalHours || 160,
+    supervisor: officialLetter.supervisorName || "N/A",
+    supervisorJobTitle: app.companyId?.trainer?.jobTitle || "",
+    studentID: student.studentID || "",
+    companyName: officialLetter.companyName || app.companyId?.name || "",
+    trainerName: officialLetter.trainerName || "",
+    status: app.status === "university_approved" || app.status === "company_final_approved" || app.status === "in_training" || app.status === "completed"
+      ? "resolved"
+      : app.status === "auto_cancelled" || app.status === "university_rejected"
+      ? "cancelled"
+      : "pending",
+    rawStatus: app.status,
+  };
+};
 
 /* ── Modal ── */
-function RequestModal({ req, onClose, onAccept }) {
+function RequestModal({ req, onClose, onAccept, processing }) {
   const company = localStorage.getItem("name") || "Your Company";
 
   return (
@@ -53,7 +61,6 @@ function RequestModal({ req, onClose, onAccept }) {
       <div className="ur-modal" onClick={(e) => e.stopPropagation()}>
         <button className="ur-modal-x" onClick={onClose}><FaTimes /></button>
 
-        {/* ── Official Letter ── */}
         <div className="ur-letter-header">
           <span className="ur-letter-icon">📄</span>
           <div>
@@ -63,7 +70,6 @@ function RequestModal({ req, onClose, onAccept }) {
         </div>
 
         <div className="ur-letter-box" dir="rtl">
-          {/* Banner Image */}
           <div className="ur-banner-wrap">
             <img src="/ptu-banner.png" alt="University Letterhead" className="ur-banner-img" />
           </div>
@@ -95,7 +101,6 @@ function RequestModal({ req, onClose, onAccept }) {
           </div>
         </div>
 
-        {/* ── Report Form ── */}
         <div className="ur-report">
           <h3 className="ur-report-title">Final Training Report — Filled by Company</h3>
           <p className="ur-report-sub">Submitted by {company}</p>
@@ -103,11 +108,11 @@ function RequestModal({ req, onClose, onAccept }) {
           <h4 className="ur-report-sec">Report Information</h4>
           <div className="ur-report-grid">
             <Field label="STUDENT NAME" value={req.name} />
-            <Field label="UNIVERSITY ID" />
+            <Field label="UNIVERSITY ID" value={req.studentID} />
             <Field label="UNIVERSITY" value={req.university} />
             <Field label="TRAINING TITLE" value={req.position} />
-            <Field label="COMPANY" value={company} />
-            <Field label="TRAINING SUPERVISOR (COMPANY)" />
+            <Field label="COMPANY" value={req.companyName || company} />
+            <Field label="TRAINING SUPERVISOR (COMPANY)" value={req.trainerName} />
             <Field label="START DATE" value={req.startDate} />
             <Field label="END DATE" />
             <Field label="TOTAL HOURS COMPLETED" />
@@ -126,12 +131,15 @@ function RequestModal({ req, onClose, onAccept }) {
           </div>
         </div>
 
-        {/* ── Actions ── */}
         <div className="ur-actions">
           <button className="ur-btn-close" onClick={onClose}>Close</button>
-          {req.status === "pending" && (
-            <button className="ur-btn-accept" onClick={() => onAccept(req.id)}>
-              <FaCheck size={12} /> Accept Request
+          {req.rawStatus === "university_approved" && (
+            <button
+              className="ur-btn-accept"
+              disabled={processing}
+              onClick={() => onAccept(req.id)}
+            >
+              <FaCheck size={12} /> {processing ? "..." : "Accept Request"}
             </button>
           )}
         </div>
@@ -153,23 +161,53 @@ function Field({ label, value, full }) {
 
 /* ── Page ── */
 export default function UniversityRequests() {
-  const [data, setData] = useState(MOCK);
+  const [pending, setPending] = useState([]);
+  const [resolved, setResolved] = useState([]);
+  const [cancelled, setCancelled] = useState([]);
   const [tab, setTab] = useState("pending");
   const [selected, setSelected] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [processing, setProcessing] = useState(false);
 
-  const pending = data.filter((r) => r.status === "pending");
-  const resolved = data.filter((r) => r.status === "resolved");
-  const cancelled = data.filter((r) => r.status === "cancelled");
-
-  const list =
-    tab === "pending" ? pending : tab === "resolved" ? resolved : cancelled;
-
-  const handleAccept = (id) => {
-    setData((d) =>
-      d.map((r) => (r.id === id ? { ...r, status: "resolved" } : r))
-    );
-    setSelected(null);
+  const loadApplications = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await applicationApi.company();
+      const all = [...(response.pending || []), ...(response.resolved || [])];
+      const mapped = all.map(mapApplication);
+      setPending(mapped.filter((r) => r.status === "pending"));
+      setResolved(mapped.filter((r) => r.status === "resolved"));
+      setCancelled(mapped.filter((r) => r.status === "cancelled"));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    loadApplications();
+  }, []);
+
+  const handleAccept = async (id) => {
+    setProcessing(true);
+    try {
+      await api(`/applications/${id}/company-final-response`, {
+        method: "PATCH",
+        body: { action: "approve" },
+      });
+      setSelected(null);
+      await loadApplications();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const list = tab === "pending" ? pending : tab === "resolved" ? resolved : cancelled;
 
   return (
     <div className="ur-page">
@@ -181,72 +219,78 @@ export default function UniversityRequests() {
         </p>
       </div>
 
-      {/* Tabs */}
+      {error && (
+        <div className="ur-error">
+          <span>{error}</span>
+          <button onClick={loadApplications} className="ur-retry-btn">Retry</button>
+        </div>
+      )}
+
       <div className="ur-tabs">
-        <button
-          className={`ur-tab${tab === "pending" ? " ur-tab-active" : ""}`}
-          onClick={() => setTab("pending")}
-        >
+        <button className={`ur-tab${tab === "pending" ? " ur-tab-active" : ""}`} onClick={() => setTab("pending")}>
           <FaClock size={12} /> Pending ({pending.length})
         </button>
-        <button
-          className={`ur-tab${tab === "resolved" ? " ur-tab-active" : ""}`}
-          onClick={() => setTab("resolved")}
-        >
+        <button className={`ur-tab${tab === "resolved" ? " ur-tab-active" : ""}`} onClick={() => setTab("resolved")}>
           <FaCheckCircle size={12} /> Resolved ({resolved.length})
         </button>
-        <button
-          className={`ur-tab${tab === "cancelled" ? " ur-tab-active" : ""}`}
-          onClick={() => setTab("cancelled")}
-        >
+        <button className={`ur-tab${tab === "cancelled" ? " ur-tab-active" : ""}`} onClick={() => setTab("cancelled")}>
           <FaBan size={12} /> Cancelled ({cancelled.length})
         </button>
       </div>
 
-      {/* List */}
-      <div className="ur-list">
-        {list.length === 0 && (
-          <div className="ur-empty">No {tab} requests.</div>
-        )}
-        {list.map((r) => (
-          <div key={r.id} className="ur-item" onClick={() => setSelected(r)}>
-            <div className="ur-avatar" style={{ background: r.color }}>
-              {r.initials}
-            </div>
-            <div className="ur-info">
-              <div className="ur-name">{r.name}</div>
-              <div className="ur-meta">
-                {r.university} · {r.position} · Submitted {r.submittedDate}
+      {loading && (
+        <div className="ur-loading">
+          <div className="ur-spinner"></div>
+          <p>Loading requests...</p>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="ur-list">
+          {list.length === 0 && (
+            <div className="ur-empty">No {tab} requests.</div>
+          )}
+          {list.map((r) => (
+            <div key={r.id} className="ur-item" onClick={() => setSelected(r)}>
+              <div className="ur-avatar" style={{ background: r.color }}>
+                {r.initials}
+              </div>
+              <div className="ur-info">
+                <div className="ur-name">{r.name}</div>
+                <div className="ur-meta">
+                  {r.university} · {r.position} · Submitted {r.submittedDate}
+                </div>
+              </div>
+              <div className="ur-row-actions">
+                {r.status === "pending" && (
+                  <>
+                    <span className="ur-badge ur-badge-pending">Pending</span>
+                    <button
+                      className="ur-accept-btn"
+                      onClick={(e) => { e.stopPropagation(); handleAccept(r.id); }}
+                    >
+                      <FaCheck size={11} /> Accept
+                    </button>
+                  </>
+                )}
+                {r.status === "resolved" && (
+                  <span className="ur-badge ur-badge-resolved">Resolved</span>
+                )}
+                {r.status === "cancelled" && (
+                  <span className="ur-badge ur-badge-cancelled">Cancelled</span>
+                )}
               </div>
             </div>
-            <div className="ur-row-actions">
-              {r.status === "pending" && (
-                <>
-                  <span className="ur-badge ur-badge-pending">Pending</span>
-                  <button
-                    className="ur-accept-btn"
-                    onClick={(e) => { e.stopPropagation(); handleAccept(r.id); }}
-                  >
-                    <FaCheck size={11} /> Accept
-                  </button>
-                </>
-              )}
-              {r.status === "resolved" && (
-                <span className="ur-badge ur-badge-resolved">Resolved</span>
-              )}
-              {r.status === "cancelled" && (
-                <span className="ur-badge ur-badge-cancelled">Cancelled</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {selected && (
         <RequestModal
           req={selected}
           onClose={() => setSelected(null)}
           onAccept={handleAccept}
+          processing={processing}
         />
       )}
     </div>
