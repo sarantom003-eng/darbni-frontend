@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FaChevronRight, FaChevronDown, FaCheck, FaRegCommentDots } from "react-icons/fa";
-import { applicationApi, logsApi } from "../api/client";
+import { applicationApi } from "../api/client";
 
 // ✅ تحويل بيانات المتدرب من API إلى تنسيق الواجهة
 const mapIntern = (app) => {
@@ -18,18 +18,34 @@ const mapIntern = (app) => {
     initials: firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
     color: ["#7c5cbf", "#e67e22", "#27ae60", "#e74c3c", "#3498db"][Math.floor(Math.random() * 5)],
     department: student.major || "N/A",
-    pendingCount: 0, // سيتم تحديثه من logs
+    pendingCount: 0,
     hoursCompleted: 0,
     targetHours: training.totalHours || 160,
-    weeks: [], // سيتم بناؤه من logs
+    weeks: [],
   };
 };
 
-// ✅ تحويل الـ logs إلى هيكل أسابيع
-const buildWeeksFromLogs = (logs, stats) => {
+// ✅ دوال مساعدة لتنسيق التواريخ
+const getWeekNumber = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+};
+
+const getWeekRange = (date) => {
+  const start = new Date(date);
+  start.setDate(date.getDate() - date.getDay());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+};
+
+// ✅ تحويل الـ logs إلى هيكل أسابيع (دالة مؤقتة)
+const buildWeeksFromLogs = (logs) => {
   if (!logs || logs.length === 0) return [];
   
-  // تجميع الـ logs حسب الأسبوع
   const weeksMap = new Map();
   
   logs.forEach(log => {
@@ -61,31 +77,12 @@ const buildWeeksFromLogs = (logs, stats) => {
       logId: log._id,
     });
     
-    // ترتيب entries حسب التاريخ
     week.entries.sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-    // تحديد حالة الأسبوع
     const allConfirmed = week.entries.every(e => e.status === "confirmed");
     week.status = allConfirmed ? "confirmed" : "pending";
   });
   
   return Array.from(weeksMap.values());
-};
-
-const getWeekNumber = (date) => {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-  const week1 = new Date(d.getFullYear(), 0, 4);
-  return 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-};
-
-const getWeekRange = (date) => {
-  const start = new Date(date);
-  start.setDate(date.getDate() - date.getDay());
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 };
 
 /* ── Modal ── */
@@ -98,50 +95,31 @@ function InternModal({ intern, onClose, onRefresh }) {
 
   const progress = Math.round((intern.hoursCompleted / intern.targetHours) * 100);
 
-  // ✅ تأكيد سجل (Log)
   const handleConfirmEntry = async (weekId, entryIdx, logId) => {
     setProcessingId(logId);
-    try {
-      await logsApi.review(logId, "confirm");
-      if (onRefresh) await onRefresh();
-      // تحديث local state
-      setWeeks(prev =>
-        prev.map(w =>
-          w.id === weekId
-            ? {
-                ...w,
-                entries: w.entries.map((e, i) =>
-                  i === entryIdx ? { ...e, status: "confirmed" } : e
-                ),
-                status: w.entries.every((e, i) =>
-                  i === entryIdx ? true : e.status === "confirmed"
-                ) ? "confirmed" : w.status,
-              }
-            : w
-        )
-      );
-    } catch (err) {
-      console.error("Failed to confirm log:", err);
-    } finally {
-      setProcessingId(null);
-    }
+    // TODO: إضافة API التأكيد عند الحاجة
+    setWeeks(prev =>
+      prev.map(w =>
+        w.id === weekId
+          ? {
+              ...w,
+              entries: w.entries.map((e, i) =>
+                i === entryIdx ? { ...e, status: "confirmed" } : e
+              ),
+              status: w.entries.every((e, i) =>
+                i === entryIdx ? true : e.status === "confirmed"
+              ) ? "confirmed" : w.status,
+            }
+          : w
+      )
+    );
+    setProcessingId(null);
   };
 
-  // ✅ إرسال Feedback
   const handleSendFeedback = async () => {
     if (!feedbackTarget) return;
-    const { logId } = feedbackTarget;
-    setProcessingId(logId);
-    try {
-      await logsApi.review(logId, "feedback", feedbackText);
-      if (onRefresh) await onRefresh();
-      setFeedbackTarget(null);
-      setFeedbackText("");
-    } catch (err) {
-      console.error("Failed to send feedback:", err);
-    } finally {
-      setProcessingId(null);
-    }
+    setFeedbackTarget(null);
+    setFeedbackText("");
   };
 
   return (
@@ -269,7 +247,6 @@ function InternModal({ intern, onClose, onRefresh }) {
           <button className="ip-close-btn" onClick={onClose}>Close</button>
         </div>
 
-        {/* Feedback modal */}
         {feedbackTarget && (
           <div className="ip-fb-overlay" onClick={() => setFeedbackTarget(null)}>
             <div className="ip-fb-modal" onClick={(e) => e.stopPropagation()}>
@@ -286,8 +263,8 @@ function InternModal({ intern, onClose, onRefresh }) {
               />
               <div className="ip-fb-actions">
                 <button className="ip-fb-cancel" onClick={() => setFeedbackTarget(null)}>Cancel</button>
-                <button className="ip-fb-send" onClick={handleSendFeedback} disabled={processingId}>
-                  {processingId ? "Sending..." : "Send Feedback"}
+                <button className="ip-fb-send" onClick={handleSendFeedback}>
+                  Send Feedback
                 </button>
               </div>
             </div>
@@ -298,14 +275,13 @@ function InternModal({ intern, onClose, onRefresh }) {
   );
 }
 
-/* ── Page ── */
+/* ── الصفحة الرئيسية ── */
 export default function InternProgress() {
   const [interns, setInterns] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // ✅ جلب المتدربين النشطين من API
   const loadActiveInterns = async () => {
     setLoading(true);
     setError("");
@@ -316,18 +292,7 @@ export default function InternProgress() {
       const mappedInterns = await Promise.all(
         activeApps.map(async (app) => {
           const intern = mapIntern(app);
-          // جلب السجلات لكل متدرب
-          try {
-            const logsResponse = await logsApi.getByApplication(app._id);
-            const stats = logsResponse.stats || {};
-            const logs = logsResponse.logs || [];
-            
-            intern.hoursCompleted = stats.confirmedHours || 0;
-            intern.pendingCount = stats.pendingLogs || 0;
-            intern.weeks = buildWeeksFromLogs(logs, stats);
-          } catch (err) {
-            console.error(`Failed to load logs for ${app._id}:`, err);
-          }
+          // TODO: جلب السجلات من API عند الحاجة
           return intern;
         })
       );
