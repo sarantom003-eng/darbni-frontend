@@ -22,8 +22,6 @@ const detectRoleFromEmail = (email) => {
     if (e.endsWith(uni.staffDomain))   return { role: "supervisor", uni: uni.name };
     if (e.endsWith(uni.studentDomain)) return { role: "student",    uni: uni.name };
   }
-  // أي إيميل فيه @ ونقطة ومش دومين جامعي = شركة
-  // الباك إند هو اللي بيقرر فعلياً مين شركة ومين لا
   const hasAt  = e.includes("@");
   const hasDot = e.split("@")[1]?.includes(".");
   if (hasAt && hasDot) return { role: "company", uni: null };
@@ -50,19 +48,32 @@ export default function Register() {
   const [completedCreditHours, setCompletedCreditHours] = useState("");
   const [phone,                setPhone]                = useState("");
 
+  // ✅ fields الشركة — جديد
+  const [companyName,          setCompanyName]          = useState("");
+  const [industry,             setIndustry]             = useState("");
+  const [city,                 setCity]                 = useState("");
+  const [location,             setLocation]             = useState("");
+  const [companyPhone,         setCompanyPhone]         = useState("");
+  const [website,              setWebsite]              = useState("");
+  const [about,                setAbout]                = useState("");
+
   const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
   const detected = useMemo(() => detectRoleFromEmail(email), [email]);
   const isStudent = detected.role === "student";
+  const isCompany = detected.role === "company"; // ✅ جديد
 
   const validate = () => {
     const e = {};
     if (!email.trim())             e.email     = "Email is required";
     else if (!isValidEmail(email)) e.email     = "Enter a valid email";
     else if (!detected.role)       e.email     = "Email domain not recognized";
-    if (!firstName.trim())         e.firstName = "First name is required";
-    if (!lastName.trim())          e.lastName  = "Last name is required";
     if (!password)                 e.password  = "Password is required";
     else if (password.length < 6)  e.password  = "Min 6 characters";
+
+    if (!isCompany) {
+      if (!firstName.trim()) e.firstName = "First name is required";
+      if (!lastName.trim())  e.lastName  = "Last name is required";
+    }
 
     // validation الطالب
     if (isStudent) {
@@ -71,6 +82,11 @@ export default function Register() {
       if (!year_of_study)               e.year_of_study        = "Year of study is required";
       if (!completedCreditHours)        e.completedCreditHours = "Credit hours is required";
       if (!phone.trim())                e.phone                = "Phone is required";
+    }
+
+    // ✅ validation الشركة
+    if (isCompany) {
+      if (!companyName.trim()) e.companyName = "Company name is required";
     }
 
     setErrors(e);
@@ -86,23 +102,36 @@ export default function Register() {
     setApiInfo("");
 
     try {
-      const payload = isStudent
-        ? {
-            email,
-            password,
-            firstName,
-            lastName,
-            studentID,
-            major,
-            year_of_study:        Number(year_of_study),
-            completedCreditHours: Number(completedCreditHours),
-            phone,
-          }
-        : {
-            email,
-            password,
-            name: `${firstName} ${lastName}`.trim(),
-          };
+      let payload;
+
+      if (isStudent) {
+        payload = {
+          email, password, firstName, lastName,
+          studentID, major,
+          year_of_study: Number(year_of_study),
+          completedCreditHours: Number(completedCreditHours),
+          phone,
+        };
+      } else if (isCompany) {
+        // ✅ payload الشركة الكامل
+        payload = {
+          email,
+          password,
+          name: companyName,
+          industry,
+          city,
+          location,
+          phone: companyPhone,
+          website,
+          about,
+        };
+      } else {
+        payload = {
+          email,
+          password,
+          name: `${firstName} ${lastName}`.trim(),
+        };
+      }
 
       const data = await authApi.signup(payload);
 
@@ -134,7 +163,7 @@ export default function Register() {
         <span className="reg-role-icon">✓</span>
         <div>
           <strong>University Supervisor (Admin)</strong>
-          <p>As a supervisor, you'll have full admin access to manage your university's training platform — including students, companies, applications, and reports.</p>
+          <p>As a supervisor, you'll have full admin access to manage your university's training platform.</p>
         </div>
       </div>
     );
@@ -152,7 +181,7 @@ export default function Register() {
         <span className="reg-role-icon">🏢</span>
         <div>
           <strong>Company</strong>
-          <p>You'll be registered as a company. Post internships and manage student applications.</p>
+          <p>You'll be registered as a company. Your account will need supervisor approval.</p>
         </div>
       </div>
     );
@@ -203,73 +232,225 @@ export default function Register() {
               {uniHint()}
             </div>
 
-            {/* Name */}
-            <div className="reg-row">
-              <div className="reg-field">
-                <label>First Name</label>
-                <div className="reg-inp-wrap">
-                  <span className="reg-inp-icon">👤</span>
-                  <input
-                    type="text"
-                    placeholder="First Name"
-                    value={firstName}
-                    autoComplete="off"
-                    onChange={e => setFirstName(e.target.value)}
-                    className={errors.firstName ? "reg-inp error" : "reg-inp"}
+            {/* Role Box */}
+            {roleInfo()}
+
+            {/* ✅ فيلدات الشركة */}
+            {isCompany && (
+              <div className="reg-role-box company" style={{ flexDirection: "column", gap: 16, marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <span>🏢</span>
+                  <strong>Company Information</strong>
+                </div>
+
+                {/* Company Name */}
+                <div className="reg-field" style={{ marginBottom: 0 }}>
+                  <label>Company Name</label>
+                  <div className="reg-inp-wrap">
+                    <input
+                      type="text"
+                      placeholder="Tech Solutions Ltd."
+                      value={companyName}
+                      onChange={e => setCompanyName(e.target.value)}
+                      className={errors.companyName ? "reg-inp error" : "reg-inp"}
+                      style={{ paddingLeft: "14px" }}
+                    />
+                  </div>
+                  {errors.companyName && <p className="reg-err">{errors.companyName}</p>}
+                </div>
+
+                {/* Password داخل بوكس الشركة */}
+                <div className="reg-field" style={{ marginBottom: 0 }}>
+                  <label>Password</label>
+                  <div className="reg-inp-wrap">
+                    <span className="reg-inp-icon">🔒</span>
+                    <input
+                      type={showPw ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      autoComplete="new-password"
+                      onChange={e => setPassword(e.target.value)}
+                      className={errors.password ? "reg-inp error" : "reg-inp"}
+                    />
+                    <button type="button" className="reg-eye" onClick={() => setShowPw(!showPw)}>
+                      {showPw
+                        ? <svg viewBox="0 0 24 24" width="16" height="16" stroke="#aaa" fill="none" strokeWidth="2" strokeLinecap="round">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                          </svg>
+                        : <svg viewBox="0 0 24 24" width="16" height="16" stroke="#aaa" fill="none" strokeWidth="2" strokeLinecap="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                      }
+                    </button>
+                  </div>
+                  {errors.password && <p className="reg-err">{errors.password}</p>}
+                </div>
+
+                {/* Industry + City */}
+                <div className="reg-row">
+                  <div className="reg-field" style={{ marginBottom: 0 }}>
+                    <label>Industry</label>
+                    <div className="reg-inp-wrap">
+                      <input
+                        type="text"
+                        placeholder="Software / IT"
+                        value={industry}
+                        onChange={e => setIndustry(e.target.value)}
+                        className="reg-inp"
+                        style={{ paddingLeft: "14px" }}
+                      />
+                    </div>
+                  </div>
+                  <div className="reg-field" style={{ marginBottom: 0 }}>
+                    <label>City</label>
+                    <div className="reg-inp-wrap">
+                      <input
+                        type="text"
+                        placeholder="Tulkarm"
+                        value={city}
+                        onChange={e => setCity(e.target.value)}
+                        className="reg-inp"
+                        style={{ paddingLeft: "14px" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="reg-field" style={{ marginBottom: 0 }}>
+                  <label>Location / Address</label>
+                  <div className="reg-inp-wrap">
+                    <input
+                      type="text"
+                      placeholder="Street, building, area"
+                      value={location}
+                      onChange={e => setLocation(e.target.value)}
+                      className="reg-inp"
+                      style={{ paddingLeft: "14px" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Phone + Website */}
+                <div className="reg-row">
+                  <div className="reg-field" style={{ marginBottom: 0 }}>
+                    <label>Phone</label>
+                    <div className="reg-inp-wrap">
+                      <input
+                        type="text"
+                        placeholder="+970 59 000 0000"
+                        value={companyPhone}
+                        onChange={e => setCompanyPhone(e.target.value)}
+                        className="reg-inp"
+                        style={{ paddingLeft: "14px" }}
+                      />
+                    </div>
+                  </div>
+                  <div className="reg-field" style={{ marginBottom: 0 }}>
+                    <label>Website</label>
+                    <div className="reg-inp-wrap">
+                      <input
+                        type="text"
+                        placeholder="https://example.com"
+                        value={website}
+                        onChange={e => setWebsite(e.target.value)}
+                        className="reg-inp"
+                        style={{ paddingLeft: "14px" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* About */}
+                <div className="reg-field" style={{ marginBottom: 0 }}>
+                  <label>About</label>
+                  <textarea
+                    placeholder="Brief description of your company..."
+                    value={about}
+                    onChange={e => setAbout(e.target.value)}
+                    className="reg-inp"
+                    rows={3}
+                    style={{ paddingLeft: "14px", resize: "vertical" }}
                   />
                 </div>
-                {errors.firstName && <p className="reg-err">{errors.firstName}</p>}
+
+                <p style={{ fontSize: 12, color: "#b8860b", margin: 0 }}>
+                  ⚠ Company accounts require approval from a university supervisor before full access.
+                </p>
               </div>
-              <div className="reg-field">
-                <label>Last Name</label>
-                <div className="reg-inp-wrap">
-                  <input
-                    type="text"
-                    placeholder="Last Name"
-                    value={lastName}
-                    autoComplete="off"
-                    onChange={e => setLastName(e.target.value)}
-                    className={errors.lastName ? "reg-inp error" : "reg-inp"}
-                    style={{ paddingLeft: "14px" }}
-                  />
+            )}
+
+            {/* Name + Password — للطالب والسوبرفايزر بس */}
+            {!isCompany && (
+              <>
+                <div className="reg-row">
+                  <div className="reg-field">
+                    <label>First Name</label>
+                    <div className="reg-inp-wrap">
+                      <span className="reg-inp-icon">👤</span>
+                      <input
+                        type="text"
+                        placeholder="First Name"
+                        value={firstName}
+                        autoComplete="off"
+                        onChange={e => setFirstName(e.target.value)}
+                        className={errors.firstName ? "reg-inp error" : "reg-inp"}
+                      />
+                    </div>
+                    {errors.firstName && <p className="reg-err">{errors.firstName}</p>}
+                  </div>
+                  <div className="reg-field">
+                    <label>Last Name</label>
+                    <div className="reg-inp-wrap">
+                      <input
+                        type="text"
+                        placeholder="Last Name"
+                        value={lastName}
+                        autoComplete="off"
+                        onChange={e => setLastName(e.target.value)}
+                        className={errors.lastName ? "reg-inp error" : "reg-inp"}
+                        style={{ paddingLeft: "14px" }}
+                      />
+                    </div>
+                    {errors.lastName && <p className="reg-err">{errors.lastName}</p>}
+                  </div>
                 </div>
-                {errors.lastName && <p className="reg-err">{errors.lastName}</p>}
-              </div>
-            </div>
 
-            {/* Password */}
-            <div className="reg-field">
-              <label>Password</label>
-              <div className="reg-inp-wrap">
-                <span className="reg-inp-icon">🔒</span>
-                <input
-                  type={showPw ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={password}
-                  autoComplete="new-password"
-                  onChange={e => setPassword(e.target.value)}
-                  className={errors.password ? "reg-inp error" : "reg-inp"}
-                />
-                <button type="button" className="reg-eye" onClick={() => setShowPw(!showPw)}>
-                  {showPw
-                    ? <svg viewBox="0 0 24 24" width="16" height="16" stroke="#aaa" fill="none" strokeWidth="2" strokeLinecap="round">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                        <line x1="1" y1="1" x2="23" y2="23"/>
-                      </svg>
-                    : <svg viewBox="0 0 24 24" width="16" height="16" stroke="#aaa" fill="none" strokeWidth="2" strokeLinecap="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                      </svg>
-                  }
-                </button>
-              </div>
-              {errors.password && <p className="reg-err">{errors.password}</p>}
-            </div>
+                <div className="reg-field">
+                  <label>Password</label>
+                  <div className="reg-inp-wrap">
+                    <span className="reg-inp-icon">🔒</span>
+                    <input
+                      type={showPw ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      autoComplete="new-password"
+                      onChange={e => setPassword(e.target.value)}
+                      className={errors.password ? "reg-inp error" : "reg-inp"}
+                    />
+                    <button type="button" className="reg-eye" onClick={() => setShowPw(!showPw)}>
+                      {showPw
+                        ? <svg viewBox="0 0 24 24" width="16" height="16" stroke="#aaa" fill="none" strokeWidth="2" strokeLinecap="round">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                          </svg>
+                        : <svg viewBox="0 0 24 24" width="16" height="16" stroke="#aaa" fill="none" strokeWidth="2" strokeLinecap="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                      }
+                    </button>
+                  </div>
+                  {errors.password && <p className="reg-err">{errors.password}</p>}
+                </div>
+              </>
+            )}
 
-            {/* fields الطالب — تظهر بس لو إيميل طالب */}
+            {/* fields الطالب */}
             {isStudent && (
               <>
-                {/* Student ID + Phone */}
                 <div className="reg-row">
                   <div className="reg-field">
                     <label>Student ID</label>
@@ -301,7 +482,6 @@ export default function Register() {
                   </div>
                 </div>
 
-                {/* Major */}
                 <div className="reg-field">
                   <label>Major</label>
                   <div className="reg-inp-wrap">
@@ -317,7 +497,6 @@ export default function Register() {
                   {errors.major && <p className="reg-err">{errors.major}</p>}
                 </div>
 
-                {/* Year of Study + Credit Hours */}
                 <div className="reg-row">
                   <div className="reg-field">
                     <label>Year of Study</label>
@@ -356,9 +535,6 @@ export default function Register() {
                 </div>
               </>
             )}
-
-            {/* Role Box */}
-            {roleInfo()}
 
             {/* Submit */}
             <button
