@@ -8,38 +8,34 @@ const getColorForName = (name) => {
   return colors[index];
 };
 
-// ✅ mapApplication: كل الفيلدات متطابقة مع API
 const mapApplication = (app, statusType) => {
   const student = app.studentId || {};
   const training = app.trainingId || {};
-  
   const firstName = student.firstName || "";
   const lastName = student.lastName || "";
   const fullName = `${firstName} ${lastName}`.trim() || "Unknown Student";
-  
   let displayStatus = "pending";
   if (statusType === "resolved") {
     if (app.status === "company_approved") displayStatus = "approved";
     else if (app.status === "company_rejected") displayStatus = "rejected";
   }
-  
   return {
-    id: app._id,                                           // ✅
-    name: fullName,                                        // ✅
+    id: app._id,
+    name: fullName,
     initials: firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
     color: getColorForName(firstName || fullName),
-    university: student.university_name || student.universityId?.name || "Unknown", // ✅
-    position: training.title || "Unknown Position",        // ✅
-    date: app.createdAt                                    // ✅
+    university: student.university_name || student.universityId?.name || "Unknown",
+    position: training.title || "Unknown Position",
+    date: app.createdAt
       ? new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : "",
     status: displayStatus,
-    resolvedDate: app.companyApprovedAt || app.companyRejectedAt  // ✅
+    resolvedDate: app.companyApprovedAt || app.companyRejectedAt
       ? new Date(app.companyApprovedAt || app.companyRejectedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : null,
-    rejectionReason: app.companyRejectionReason || null,   // ✅
-    coverLetter: app.coverLetter || null,                  // ✅
-    major: student.major || "N/A",                         // ✅
+    rejectionReason: app.companyRejectionReason || null,
+    coverLetter: app.coverLetter || null,
+    major: student.major || "N/A",
   };
 };
 
@@ -51,37 +47,31 @@ export default function StudentRequests() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [processingId, setProcessingId] = useState(null);
+  // ✅ هاد الوحيد الجديد
+  const [rejectModal, setRejectModal] = useState({ open: false, id: null, name: "", reason: "" });
 
-  // ✅ استخدام applicationApi.company() من client.js
   const loadApplications = async () => {
     setLoading(true);
     setError("");
     try {
-      const response = await applicationApi.company();     // ✅ GET /applications/company
-      console.log("🔍 API Response:", response);
-      
+      const response = await applicationApi.company();
       const pendingApps = (response.pending || []).map(app => mapApplication(app, "pending"));
       const resolvedApps = (response.resolved || []).map(app => mapApplication(app, "resolved"));
-      
       setPending(pendingApps);
       setResolved(resolvedApps);
     } catch (err) {
-      console.error("❌ Error:", err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadApplications();
-  }, []);
+  useEffect(() => { loadApplications(); }, []);
 
-  // ✅ استخدام applicationApi.companyResponse() من client.js
   const handleApprove = async (id) => {
     setProcessingId(id);
     try {
-      await applicationApi.companyResponse(id, "approve");  // ✅ PATCH مع action=approve
+      await applicationApi.companyResponse(id, "approve");
       await loadApplications();
     } catch (err) {
       setError(err.message);
@@ -90,14 +80,18 @@ export default function StudentRequests() {
     }
   };
 
-  // ✅ استخدام applicationApi.companyResponse() مع سبب الرفض
-  const handleReject = async (id) => {
-    const reason = prompt("Enter rejection reason:", "Position filled or requirements not met");
-    if (reason === null) return;
-    
-    setProcessingId(id);
+  // ✅ بدل prompt — بيفتح الـ modal
+  const handleReject = (id) => {
+    const req = [...pending, ...resolved].find(r => r.id === id);
+    setRejectModal({ open: true, id, name: req?.name || "", reason: "" });
+  };
+
+  // ✅ لما يضغط Reject في الـ modal
+  const confirmReject = async () => {
+    setProcessingId(rejectModal.id);
+    setRejectModal({ open: false, id: null, name: "", reason: "" });
     try {
-      await applicationApi.companyResponse(id, "reject", reason);  // ✅ PATCH مع action=reject + reason
+      await applicationApi.companyResponse(rejectModal.id, "reject", rejectModal.reason);
       await loadApplications();
     } catch (err) {
       setError(err.message);
@@ -106,13 +100,11 @@ export default function StudentRequests() {
     }
   };
 
-  const toggleExpand = (id) => {
-    setExpandedId((prev) => (prev === id ? null : id));
-  };
+  const closeRejectModal = () => setRejectModal({ open: false, id: null, name: "", reason: "" });
+
+  const toggleExpand = (id) => setExpandedId((prev) => (prev === id ? null : id));
 
   const displayList = activeTab === "pending" ? pending : resolved;
-  const pendingCount = pending.length;
-  const resolvedCount = resolved.length;
 
   return (
     <div className="sr-page">
@@ -133,15 +125,13 @@ export default function StudentRequests() {
           className={`sr-tab${activeTab === "pending" ? " sr-tab-active" : ""}`}
           onClick={() => setActiveTab("pending")}
         >
-          <FaClock size={12} />
-          Pending ({pendingCount})
+          <FaClock size={12} /> Pending ({pending.length})
         </button>
         <button
           className={`sr-tab${activeTab === "resolved" ? " sr-tab-active" : ""}`}
           onClick={() => setActiveTab("resolved")}
         >
-          <FaCheckCircle size={12} />
-          Resolved ({resolvedCount})
+          <FaCheckCircle size={12} /> Resolved ({resolved.length})
         </button>
       </div>
 
@@ -156,9 +146,7 @@ export default function StudentRequests() {
         <div className="sr-list">
           {displayList.length === 0 && (
             <div className="sr-empty">
-              {activeTab === "pending"
-                ? "No pending requests at the moment."
-                : "No resolved requests yet."}
+              {activeTab === "pending" ? "No pending requests at the moment." : "No resolved requests yet."}
             </div>
           )}
 
@@ -168,14 +156,12 @@ export default function StudentRequests() {
                 <div className="sr-avatar" style={{ background: req.color }}>
                   {req.initials}
                 </div>
-
                 <div className="sr-info">
                   <div className="sr-name">{req.name}</div>
                   <div className="sr-meta">
                     {req.university} · {req.position} · {req.date}
                   </div>
                 </div>
-
                 <div className="sr-actions">
                   {req.status === "pending" && (
                     <>
@@ -196,15 +182,9 @@ export default function StudentRequests() {
                       </button>
                     </>
                   )}
-                  {req.status === "approved" && (
-                    <span className="sr-status-badge sr-status-approved">Approved</span>
-                  )}
-                  {req.status === "rejected" && (
-                    <span className="sr-status-badge sr-status-rejected">Rejected</span>
-                  )}
-                  <FaChevronRight
-                    className={`sr-chevron${expandedId === req.id ? " sr-chevron-open" : ""}`}
-                  />
+                  {req.status === "approved" && <span className="sr-status-badge sr-status-approved">Approved</span>}
+                  {req.status === "rejected" && <span className="sr-status-badge sr-status-rejected">Rejected</span>}
+                  <FaChevronRight className={`sr-chevron${expandedId === req.id ? " sr-chevron-open" : ""}`} />
                 </div>
               </div>
 
@@ -235,8 +215,7 @@ export default function StudentRequests() {
                       <span className="sr-detail-label">Status</span>
                       <span className="sr-detail-val" style={{
                         color: req.status === "approved" ? "#27ae60" : req.status === "rejected" ? "#e74c3c" : "#b8860b",
-                        fontWeight: 700,
-                        textTransform: "capitalize"
+                        fontWeight: 700, textTransform: "capitalize"
                       }}>{req.status}</span>
                     </div>
                     {req.resolvedDate && (
@@ -262,6 +241,38 @@ export default function StudentRequests() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ✅ Reject Modal — الجديد */}
+      {rejectModal.open && (
+        <div className="modal-overlay" onClick={closeRejectModal}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>Reject Request</h3>
+              <button className="modal-close" onClick={closeRejectModal}>✕</button>
+            </div>
+            <p className="modal-sub">
+              Rejecting request from <strong>{rejectModal.name}</strong>. You can provide an optional reason.
+            </p>
+            <textarea
+              className="modal-textarea"
+              rows={4}
+              placeholder="Reason for rejection (optional)..."
+              value={rejectModal.reason}
+              onChange={e => setRejectModal(prev => ({ ...prev, reason: e.target.value }))}
+            />
+            <div className="modal-actions">
+              <button className="modal-cancel" onClick={closeRejectModal}>Cancel</button>
+              <button
+                className="modal-submit"
+                style={{ background: "#e74c3c" }}
+                onClick={confirmReject}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
