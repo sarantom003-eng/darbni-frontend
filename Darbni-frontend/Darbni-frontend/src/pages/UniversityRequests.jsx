@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FaCheck, FaClock, FaCheckCircle, FaBan, FaTimes, FaFileAlt } from "react-icons/fa";
+import { FaCheck, FaClock, FaCheckCircle, FaBan, FaTimes } from "react-icons/fa";
 import { applicationApi } from "../api/client";
 
 /* ── Modal عرض التفاصيل ── */
@@ -87,7 +87,7 @@ function Field({ label, value, full }) {
   );
 }
 
-// ✅ تحويل بيانات الـ API إلى تنسيق الواجهة (للكومباني)
+// ✅ تحويل بيانات الـ API إلى تنسيق الواجهة
 const mapApplication = (app, statusType) => {
   const student = app.studentId || {};
   const training = app.trainingId || {};
@@ -141,7 +141,7 @@ export default function UniversityRequests() {
       const response = await applicationApi.company();
       console.log("🔍 Company API Response:", response);
       
-      // ✅ الشركة تجلب البيانات من response.pending و response.resolved
+      // ✅ تصفية البيانات حسب الحالة
       setPending((response.pending || []).map(app => mapApplication(app, "pending")));
       setResolved((response.resolved || []).filter(app => app.status === "company_approved").map(app => mapApplication(app, "resolved")));
       setCancelled((response.resolved || []).filter(app => app.status === "company_rejected").map(app => mapApplication(app, "cancelled")));
