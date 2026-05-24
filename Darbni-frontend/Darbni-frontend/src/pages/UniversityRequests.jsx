@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { FaCheck, FaClock, FaCheckCircle, FaBan, FaTimes } from "react-icons/fa";
 import { applicationApi } from "../api/client";
 
-/* ── Modal ── */
+/* ── Modal عرض التفاصيل ── */
 function RequestModal({ req, onClose, onAccept }) {
   const company = localStorage.getItem("name") || "Your Company";
 
@@ -11,6 +11,7 @@ function RequestModal({ req, onClose, onAccept }) {
       <div className="ur-modal" onClick={(e) => e.stopPropagation()}>
         <button className="ur-modal-x" onClick={onClose}><FaTimes /></button>
 
+        {/* Official Letter Header */}
         <div className="ur-letter-header">
           <span className="ur-letter-icon">📄</span>
           <div>
@@ -19,15 +20,14 @@ function RequestModal({ req, onClose, onAccept }) {
           </div>
         </div>
 
+        {/* Letter Content */}
         <div className="ur-letter-box" dir="rtl">
           <div className="ur-banner-wrap">
             <img src="/ptu-banner.png" alt="University Letterhead" className="ur-banner-img" />
           </div>
-
           <div className="ur-letter-date-row">
             <span>التاريخ : {req.letterDate}</span>
           </div>
-
           <div className="ur-letter-body">
             <p style={{ textAlign: "right" }}>حضرة السادة : <strong>{company}</strong> المحترمين</p>
             <p style={{ textAlign: "center", fontWeight: 700 }}>الموضوع : التدريب الميداني</p>
@@ -36,14 +36,7 @@ function RequestModal({ req, onClose, onAccept }) {
             <p>
               أرجو من حضرتكم التكرم بالسماح للطالب/ة <strong>{req.name}</strong> بالتدرب
               في مؤسستكم الموقرة أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب
-              ({req.hours}) ساعة تدريبية حيث يكون دوام الطالب في مؤسستكم مثل دوام
-              العاملين فيها ولا يحق له التغيب دون إذن رسمي. وسيقدم الطالب المتدرب تقريراً عما
-              اكتسب من مهارات للمحاضر المسؤول عنه في الجامعة في نهاية هذه الفترة.
-            </p>
-            <p>
-              يرجى من المشرف المباشر عن التدريب لديكم تعبئة نموذج التقييم المرفق
-              ومتابعة حضور الطالب المتدرب من خلال نموذج الحضور والغياب المرفق
-              وذلك بعد انتهاء فترة التدريب.
+              ({req.hours}) ساعة تدريبية...
             </p>
             <p style={{ textAlign: "center", marginTop: 18, fontWeight: 700 }}>وتفضلوا بقبول فائق الاحترام..</p>
             <p className="ur-sig">مسؤول التدريب : <strong>{req.supervisor}</strong></p>
@@ -51,36 +44,25 @@ function RequestModal({ req, onClose, onAccept }) {
           </div>
         </div>
 
+        {/* Report Form */}
         <div className="ur-report">
           <h3 className="ur-report-title">Final Training Report — Filled by Company</h3>
           <p className="ur-report-sub">Submitted by {company}</p>
-
           <h4 className="ur-report-sec">Report Information</h4>
           <div className="ur-report-grid">
             <Field label="STUDENT NAME" value={req.name} />
-            <Field label="UNIVERSITY ID" />
             <Field label="UNIVERSITY" value={req.university} />
             <Field label="TRAINING TITLE" value={req.position} />
             <Field label="COMPANY" value={company} />
-            <Field label="TRAINING SUPERVISOR (COMPANY)" />
             <Field label="START DATE" value={req.startDate} />
-            <Field label="END DATE" />
-            <Field label="TOTAL HOURS COMPLETED" />
-            <Field label="TOTAL DAYS" />
           </div>
-          <div className="ur-report-full">
-            <Field label="FINAL RATING" full />
-          </div>
-
           <h4 className="ur-report-sec">Final Evaluation</h4>
           <div className="ur-report-full">
             <Field label="COMMENTS ON STUDENT PERFORMANCE" full />
           </div>
-          <div className="ur-report-full">
-            <Field label="OTHER COMMENTS" full />
-          </div>
         </div>
 
+        {/* Actions */}
         <div className="ur-actions">
           <button className="ur-btn-close" onClick={onClose}>Close</button>
           {req.status === "pending" && (
@@ -106,13 +88,17 @@ function Field({ label, value, full }) {
 }
 
 // ✅ تحويل بيانات الـ API إلى تنسيق الواجهة
-const mapApplication = (app, status) => {
+const mapApplication = (app, groupType) => {
   const student = app.studentId || {};
   const training = app.trainingId || {};
   
   const firstName = student.firstName || "";
   const lastName = student.lastName || "";
   const fullName = `${firstName} ${lastName}`.trim() || "Unknown Student";
+  
+  let displayStatus = "pending";
+  if (groupType === "sentToCompany") displayStatus = "resolved";
+  else if (groupType === "rejected") displayStatus = "cancelled";
   
   return {
     id: app._id,
@@ -131,11 +117,10 @@ const mapApplication = (app, status) => {
     startDate: training.startDate ? new Date(training.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "TBD",
     hours: training.totalHours || 160,
     supervisor: app.supervisorId?.firstName ? `${app.supervisorId.firstName} ${app.supervisorId.lastName}` : "University Supervisor",
-    status: status, // pending, resolved (accepted), cancelled
+    status: displayStatus,
   };
 };
 
-/* ── Page ── */
 export default function UniversityRequests() {
   const [pending, setPending] = useState([]);
   const [resolved, setResolved] = useState([]);
@@ -157,8 +142,8 @@ export default function UniversityRequests() {
       const grouped = response.grouped || {};
       
       setPending((grouped.pending || []).map(app => mapApplication(app, "pending")));
-      setResolved((grouped.sentToCompany || []).map(app => mapApplication(app, "resolved")));
-      setCancelled((grouped.cancelled || []).map(app => mapApplication(app, "cancelled")));
+      setResolved((grouped.sentToCompany || []).map(app => mapApplication(app, "sentToCompany")));
+      setCancelled((grouped.rejected || []).map(app => mapApplication(app, "rejected")));
     } catch (err) {
       console.error("❌ Error:", err);
       setError(err.message);
@@ -171,7 +156,7 @@ export default function UniversityRequests() {
     loadApplications();
   }, []);
 
-  // ✅ الموافقة على الطلب (تروح عالـ API)
+  // ✅ الموافقة على الطلب
   const handleAccept = async (id) => {
     setProcessingId(id);
     try {
@@ -200,10 +185,7 @@ export default function UniversityRequests() {
     <div className="ur-page">
       <div className="ur-header">
         <h1 className="ur-title">University Requests</h1>
-        <p className="ur-sub">
-          Official internship requests forwarded by universities. Click any name
-          to view the official letter.
-        </p>
+        <p className="ur-sub">Official internship requests forwarded by universities. Click any name to view the official letter.</p>
       </div>
 
       {error && (
@@ -213,7 +195,6 @@ export default function UniversityRequests() {
         </div>
       )}
 
-      {/* Tabs */}
       <div className="ur-tabs">
         <button
           className={`ur-tab${tab === "pending" ? " ur-tab-active" : ""}`}
@@ -235,7 +216,6 @@ export default function UniversityRequests() {
         </button>
       </div>
 
-      {/* Loading */}
       {loading && (
         <div className="ur-loading">
           <div className="ur-spinner"></div>
@@ -243,17 +223,12 @@ export default function UniversityRequests() {
         </div>
       )}
 
-      {/* List */}
       {!loading && (
         <div className="ur-list">
-          {list.length === 0 && (
-            <div className="ur-empty">No {tab} requests.</div>
-          )}
+          {list.length === 0 && <div className="ur-empty">No {tab} requests.</div>}
           {list.map((r) => (
             <div key={r.id} className="ur-item" onClick={() => setSelected(r)}>
-              <div className="ur-avatar" style={{ background: r.color }}>
-                {r.initials}
-              </div>
+              <div className="ur-avatar" style={{ background: r.color }}>{r.initials}</div>
               <div className="ur-info">
                 <div className="ur-name">{r.name}</div>
                 <div className="ur-meta">
@@ -273,12 +248,8 @@ export default function UniversityRequests() {
                     </button>
                   </>
                 )}
-                {r.status === "resolved" && (
-                  <span className="ur-badge ur-badge-resolved">Resolved</span>
-                )}
-                {r.status === "cancelled" && (
-                  <span className="ur-badge ur-badge-cancelled">Cancelled</span>
-                )}
+                {r.status === "resolved" && <span className="ur-badge ur-badge-resolved">Resolved</span>}
+                {r.status === "cancelled" && <span className="ur-badge ur-badge-cancelled">Cancelled</span>}
               </div>
             </div>
           ))}
