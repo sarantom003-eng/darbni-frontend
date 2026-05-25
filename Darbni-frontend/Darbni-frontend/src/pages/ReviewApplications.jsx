@@ -2,11 +2,67 @@ import { useState, useEffect } from "react";
 import {
   FaClock, FaEye, FaCheck, FaTimes, FaGraduationCap,
   FaPaperPlane, FaExclamationTriangle, FaBuilding,
-  FaSpinner
+  FaSpinner, FaBan
 } from "react-icons/fa";
 import { applicationApi, notificationApi } from "../api/client";
 
-function ApplicationModal({ app, onClose, onAction, isProcessing }) {
+// ================ Modal لسبب الرفض ================
+function RejectModal({ isOpen, onClose, onConfirm, isProcessing }) {
+  const [reason, setReason] = useState("");
+
+  if (!isOpen) return null;
+
+  const handleSubmit = () => {
+    if (!reason.trim()) {
+      alert("Please enter a rejection reason");
+      return;
+    }
+    onConfirm(reason);
+    setReason("");
+  };
+
+  return (
+    <div className="ra-overlay" onClick={onClose}>
+      <div className="ra-modal ra-modal-sm" onClick={e => e.stopPropagation()}>
+        <button className="ra-modal-close" onClick={onClose} disabled={isProcessing}>
+          <FaTimes />
+        </button>
+
+        <div className="ra-modal-icon ra-modal-icon-danger">
+          <FaBan />
+        </div>
+
+        <h3 className="ra-modal-title">Reject Application</h3>
+        <p className="ra-modal-subtitle">Please provide a reason for rejecting this application</p>
+
+        <div className="ra-form-group">
+          <label>Rejection Reason</label>
+          <textarea
+            className="ra-textarea"
+            rows="3"
+            placeholder="e.g., Missing documents, Credit hours not met, etc."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            disabled={isProcessing}
+          />
+        </div>
+
+        <div className="ra-modal-footer">
+          <button className="ra-btn-close" onClick={onClose} disabled={isProcessing}>
+            Cancel
+          </button>
+          <button className="ra-btn-reject" onClick={handleSubmit} disabled={isProcessing}>
+            {isProcessing ? <FaSpinner className="spinner" /> : <FaTimes />}
+            Confirm Rejection
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ================ Modal تفاصيل الطلب ================
+function ApplicationModal({ app, onClose }) {
   if (!app) return null;
   
   const firstName = app.studentId?.firstName || "";
@@ -35,7 +91,7 @@ function ApplicationModal({ app, onClose, onAction, isProcessing }) {
   return (
     <div className="ra-overlay" onClick={onClose}>
       <div className="ra-modal" onClick={e => e.stopPropagation()}>
-        <button className="ra-modal-close" onClick={onClose} disabled={isProcessing}>
+        <button className="ra-modal-close" onClick={onClose}>
           <FaTimes />
         </button>
 
@@ -49,12 +105,14 @@ function ApplicationModal({ app, onClose, onAction, isProcessing }) {
           </div>
         </div>
 
-        <div className={`ra-modal-warning ${isUrgent ? "urgent" : ""}`}>
-          <FaClock />
-          <span>
-            <strong>Deadline: {timeRemaining}</strong> — University must act within 3 days or the application is auto-cancelled.
-          </span>
-        </div>
+        {app.status === "pending_university" && (
+          <div className={`ra-modal-warning ${isUrgent ? "urgent" : ""}`}>
+            <FaClock />
+            <span>
+              <strong>Deadline: {timeRemaining}</strong> — University must act within 3 days or the application is auto-cancelled.
+            </span>
+          </div>
+        )}
 
         <div className="ra-modal-quick">
           <div className="ra-quick-box">
@@ -154,35 +212,16 @@ function ApplicationModal({ app, onClose, onAction, isProcessing }) {
         </div>
 
         <div className="ra-modal-footer">
-          <button className="ra-btn-close" onClick={onClose} disabled={isProcessing}>
+          <button className="ra-btn-close" onClick={onClose}>
             Close
           </button>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button 
-              className="ra-btn-approve" 
-              onClick={() => onAction(app._id, "approve")}
-              disabled={isProcessing}
-            >
-              {isProcessing ? <FaSpinner className="spinner" /> : <FaCheck />} 
-              Approve & Forward
-            </button>
-            <button 
-              className="ra-btn-reject" 
-              onClick={() => {
-                const reason = prompt("Enter rejection reason:");
-                if (reason) onAction(app._id, "reject", reason);
-              }}
-              disabled={isProcessing}
-            >
-              <FaTimes /> Reject
-            </button>
-          </div>
         </div>
       </div>
     </div>
   );
 }
 
+// ================ Main Component ================
 export default function ReviewApplications() {
   const [filter, setFilter] = useState("pending_university");
   const [applications, setApplications] = useState([]);
@@ -190,6 +229,8 @@ export default function ReviewApplications() {
   const [error, setError] = useState(null);
   const [selectedApp, setSelectedApp] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [rejectAppId, setRejectAppId] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -215,20 +256,29 @@ export default function ReviewApplications() {
 
   const filteredApps = applications.filter(app => app.status === filter);
 
-  const handleUniversityResponse = async (applicationId, action, rejectionReason = null) => {
+  const handleApprove = async (applicationId) => {
     setIsProcessing(true);
     try {
-      const body = action === "approve" 
-        ? { action: "approve" }
-        : { action: "reject", rejectionReason };
-      
-      await applicationApi.universityResponse(applicationId, action, body);
+      await applicationApi.universityResponse(applicationId, "approve", { action: "approve" });
       await fetchApplications();
-      setSelectedApp(null);
       await notificationApi.markAllRead();
-      
     } catch (err) {
-      console.error("Error processing application:", err);
+      console.error("Error approving application:", err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReject = async (applicationId, reason) => {
+    setIsProcessing(true);
+    try {
+      await applicationApi.universityResponse(applicationId, "reject", { action: "reject", rejectionReason: reason });
+      await fetchApplications();
+      setRejectAppId(null);
+      setRejectReason("");
+    } catch (err) {
+      console.error("Error rejecting application:", err);
       alert(`Error: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -352,18 +402,18 @@ export default function ReviewApplications() {
                         className="ra-btn-solid ra-solid-approve" 
                         onClick={(e) => { 
                           e.stopPropagation(); 
-                          handleUniversityResponse(app._id, "approve");
+                          handleApprove(app._id);
                         }}
                         disabled={isProcessing}
                       >
-                        <FaCheck /> Approve
+                        {isProcessing ? <FaSpinner className="spinner" /> : <FaCheck />}
+                        Approve
                       </button>
                       <button 
                         className="ra-btn-solid ra-solid-reject" 
                         onClick={(e) => { 
                           e.stopPropagation();
-                          const reason = prompt("Enter rejection reason:");
-                          if (reason) handleUniversityResponse(app._id, "reject", reason);
+                          setRejectAppId(app._id);
                         }}
                         disabled={isProcessing}
                       >
@@ -371,11 +421,12 @@ export default function ReviewApplications() {
                       </button>
                     </>
                   )}
-                  {app.status === "university_approved" && (
-                    <button className="ra-btn-view" onClick={(e) => { e.stopPropagation(); setSelectedApp(app); }}>
-                      <FaEye /> View Details
-                    </button>
-                  )}
+                  <button 
+                    className="ra-btn-view" 
+                    onClick={(e) => { e.stopPropagation(); setSelectedApp(app); }}
+                  >
+                    <FaEye /> View Details
+                  </button>
                 </div>
               </div>
             </div>
@@ -383,14 +434,26 @@ export default function ReviewApplications() {
         })}
       </div>
 
+      {/* Modal for View Details */}
       {selectedApp && (
         <ApplicationModal
           app={selectedApp}
           onClose={() => setSelectedApp(null)}
-          onAction={handleUniversityResponse}
-          isProcessing={isProcessing}
         />
       )}
+
+      {/* Modal for Rejection Reason */}
+      <RejectModal
+        isOpen={!!rejectAppId}
+        onClose={() => {
+          setRejectAppId(null);
+          setRejectReason("");
+        }}
+        onConfirm={(reason) => {
+          if (rejectAppId) handleReject(rejectAppId, reason);
+        }}
+        isProcessing={isProcessing}
+      />
     </div>
   );
 }
