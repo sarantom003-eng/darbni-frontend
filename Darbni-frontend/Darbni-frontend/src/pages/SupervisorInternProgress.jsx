@@ -181,7 +181,14 @@ export default function SupervisorInternProgress() {
     setError("");
     try {
       const response = await applicationApi.university();
-      const applications = response.applications || [];
+      const allApplications = response.applications || [];
+      
+      // فقط الطلاب اللي وصلوا للموافقة النهائية أو بدأوا التدريب أو أكملوه
+      const applications = allApplications.filter(app => 
+        app.status === "company_final_approved" || 
+        app.status === "in_training" || 
+        app.status === "completed"
+      );
       
       const mapped = await Promise.all(applications.map(async (app) => {
         const student = app.studentId || {};
