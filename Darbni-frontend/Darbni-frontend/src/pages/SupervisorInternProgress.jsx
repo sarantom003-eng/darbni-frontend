@@ -1,89 +1,94 @@
-import React, { useState } from "react";
-import { FaUserFriends, FaRegClock, FaCheckCircle, FaExclamationCircle, FaChevronRight, FaChevronDown, FaCheck, FaRegCommentDots } from "react-icons/fa";
+import React, { useState, useEffect } from "react";
+import { 
+  FaUserFriends, FaRegClock, FaCheckCircle, FaExclamationCircle, 
+  FaChevronRight, FaChevronDown, FaRegCommentDots, FaSpinner 
+} from "react-icons/fa";
+import { applicationApi, getToken, API_BASE_URL } from "../api/client";
 
-const MOCK_TRAINEES = [
-  {
-    id: 1, name: "Sara Tomeh", idNum: "20211111", initials: "ST", color: "#f0e6ff", textColor: "#7c5cbf",
-    company: "TechPal Solutions", department: "Web Development",
-    status: "In Progress", statusClass: "sip-badge-progress",
-    hoursDone: 120, targetHours: 150, confirmed: 8, totalConfirmed: 11,
-    progress: 80,
-    weeks: [
-      {
-        id: 1, label: "Week 1", dates: "Mar 3 - Mar 7", totalHours: 15, days: 4, status: "Confirmed",
-        entries: [
-          { day: "Sunday", date: "Mar 3", task: "HTML/CSS review", hours: 4, status: "Confirmed" },
-          { day: "Monday", date: "Mar 4", task: "JavaScript basics", hours: 4, status: "Confirmed" },
-          { day: "Tuesday", date: "Mar 5", task: "React components", hours: 4, status: "Confirmed" },
-          { day: "Wednesday", date: "Mar 6", task: "State management", hours: 3, status: "Confirmed" }
-        ]
-      },
-      {
-        id: 2, label: "Week 2", dates: "Mar 10 - Mar 14", totalHours: 18, days: 4, status: "Confirmed",
-        entries: [
-          { day: "Sunday", date: "Mar 10", task: "Routing setup", hours: 5, status: "Confirmed" },
-          { day: "Monday", date: "Mar 11", task: "API integration", hours: 5, status: "Confirmed" },
-          { day: "Tuesday", date: "Mar 12", task: "Form validation", hours: 4, status: "Confirmed" },
-          { day: "Wednesday", date: "Mar 13", task: "Authentication flow", hours: 4, status: "Confirmed" }
-        ]
-      },
-      {
-        id: 3, label: "Week 3", dates: "Mar 17 - Mar 21", totalHours: 15, days: 3, status: "Pending",
-        entries: [
-          { day: "Sunday", date: "Mar 17", task: "Dashboard layout", hours: 5, status: "Pending" },
-          { day: "Monday", date: "Mar 18", task: "Code review", hours: 5, status: "Pending" },
-          { day: "Tuesday", date: "Mar 19", task: "Bug fixing", hours: 5, status: "Pending" }
-        ]
-      }
-    ]
-  },
-  {
-    id: 2, name: "Rami Khalil", idNum: "20212222", initials: "RK", color: "#f0e6ff", textColor: "#7c5cbf",
-    company: "DataVision Co.", department: "Data Science",
-    status: "In Progress", statusClass: "sip-badge-progress",
-    hoursDone: 80, targetHours: 150, confirmed: 6, totalConfirmed: 8,
-    progress: 53,
-    weeks: [
-      {
-        id: 1, label: "Week 1", dates: "Mar 3 - Mar 7", totalHours: 20, days: 4, status: "Confirmed",
-        entries: [
-          { day: "Sunday", date: "Mar 3", task: "Data cleaning", hours: 5, status: "Confirmed" },
-          { day: "Monday", date: "Mar 4", task: "Dataset exploration", hours: 5, status: "Confirmed" },
-          { day: "Tuesday", date: "Mar 5", task: "Feature analysis", hours: 5, status: "Confirmed" },
-          { day: "Wednesday", date: "Mar 6", task: "Visualization", hasComment: true, comment: "\"Solid understanding\"", hours: 5, status: "Confirmed" },
-        ]
-      },
-      {
-        id: 2, label: "Week 2", dates: "Mar 10 - Mar 14", totalHours: 20, days: 4, status: "Pending",
-        entries: [
-          { day: "Sunday", date: "Mar 10", task: "Model training", hours: 5, status: "Pending" },
-          { day: "Monday", date: "Mar 11", task: "Evaluation", hours: 5, status: "Pending" },
-          { day: "Tuesday", date: "Mar 12", task: "Deployment setup", hours: 5, status: "Pending" },
-          { day: "Wednesday", date: "Mar 13", task: "Documentation", hours: 5, status: "Pending" }
-        ]
-      }
-    ]
-  },
-  {
-    id: 3, name: "Nour Abed", idNum: "20213333", initials: "NA", color: "#f0e6ff", textColor: "#7c5cbf",
-    company: "CyberGuard Inc.", department: "Cybersecurity",
-    status: "Completed", statusClass: "sip-badge-completed",
-    hoursDone: 150, targetHours: 150, confirmed: 4, totalConfirmed: 4,
-    progress: 100,
-    weeks: []
-  },
-  {
-    id: 4, name: "Omar Saleh", idNum: "20214444", initials: "OS", color: "#f0e6ff", textColor: "#7c5cbf",
-    company: "CloudNine Tech", department: "Cloud Computing",
-    status: "Behind", statusClass: "sip-badge-behind",
-    hoursDone: 45, targetHours: 150, confirmed: 2, totalConfirmed: 3,
-    progress: 30,
-    weeks: []
+// ========== Helper Functions ==========
+const getWeekNumber = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+};
+
+const getWeekRange = (date) => {
+  const start = new Date(date);
+  start.setDate(date.getDate() - date.getDay());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+};
+
+const buildWeeksFromLogs = (logs) => {
+  if (!logs || logs.length === 0) return [];
+  
+  const weeksMap = new Map();
+  let weekCounter = 0;
+  
+  logs.forEach(log => {
+    const date = new Date(log.log_date);
+    const weekNumber = getWeekNumber(date);
+    const weekKey = `${date.getFullYear()}-W${weekNumber}`;
+    
+    if (!weeksMap.has(weekKey)) {
+      weekCounter++;
+      weeksMap.set(weekKey, {
+        id: weekKey,
+        label: `Week ${weekCounter}`,
+        dates: getWeekRange(date),
+        totalHours: 0,
+        days: 0,
+        status: "pending",
+        entries: [],
+      });
+    }
+    
+    const week = weeksMap.get(weekKey);
+    week.totalHours += log.hours;
+    week.days++;
+    week.entries.push({
+      day: date.toLocaleDateString("en-US", { weekday: "long" }),
+      date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      task: log.tasks_completed,
+      hours: log.hours,
+      status: log.status === "confirmed" ? "Confirmed" : "Pending",
+      logId: log._id,
+      comment: log.company_feedback || "",
+    });
+    
+    week.entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    const allConfirmed = week.entries.every(e => e.status === "Confirmed");
+    week.status = allConfirmed ? "Confirmed" : "Pending";
+  });
+  
+  return Array.from(weeksMap.values());
+};
+
+// ========== Fetch Logs ==========
+const fetchLogsForApplication = async (applicationId) => {
+  try {
+    const token = getToken();
+    const response = await fetch(`${API_BASE_URL}/logs/${applicationId}`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (err) {
+    console.error("Error fetching logs:", err);
+    return null;
   }
-];
+};
 
-function InternModal({ intern, onClose }) {
+// ========== Modal Component ==========
+function InternModal({ intern, onClose, onRefresh }) {
   const [expandedWeek, setExpandedWeek] = useState(intern.weeks?.[0]?.id || null);
+  const [weeks, setWeeks] = useState(intern.weeks || []);
+  const [loading, setLoading] = useState(false);
+
+  const progress = Math.min(100, Math.round((intern.hoursDone / intern.targetHours) * 100));
 
   return (
     <div className="sip-overlay" onClick={onClose}>
@@ -110,21 +115,27 @@ function InternModal({ intern, onClose }) {
             <span className="sip-mstat-lbl">Target</span>
           </div>
           <div className="sip-mstat">
-            <span className="sip-mstat-num">{intern.progress}%</span>
+            <span className="sip-mstat-num">{progress}%</span>
             <span className="sip-mstat-lbl">Progress</span>
           </div>
         </div>
 
         <div className="sip-modal-bar-wrap">
           <div className="sip-modal-bar-bg">
-            <div className="sip-modal-bar-fill" style={{ width: `${intern.progress}%` }}></div>
+            <div className="sip-modal-bar-fill" style={{ width: `${progress}%` }}></div>
           </div>
         </div>
 
         <h4 className="sip-modal-log-title">Weekly Schedule Log</h4>
         
         <div className="sip-weeks">
-          {intern.weeks && intern.weeks.map(week => {
+          {loading && (
+            <div className="sip-loading"><FaSpinner className="spinner" /> Loading logs...</div>
+          )}
+          {!loading && weeks.length === 0 && (
+            <div className="sip-no-weeks">No logs submitted yet.</div>
+          )}
+          {!loading && weeks.map((week) => {
             const isOpen = expandedWeek === week.id;
             return (
               <div key={week.id} className="sip-week-card">
@@ -159,17 +170,17 @@ function InternModal({ intern, onClose }) {
                         {week.entries.map((entry, idx) => (
                           <tr key={idx}>
                             <td className="sip-td-day">{entry.day}</td>
-                            <td>{entry.date}</td>
-                            <td>
+                            <td className="sip-td-date">{entry.date}</td>
+                            <td className="sip-td-task">
                               {entry.task}
-                              {entry.hasComment && (
+                              {entry.comment && (
                                 <div className="sip-entry-comment">
                                   <FaRegCommentDots size={12}/> <i>{entry.comment}</i>
                                 </div>
                               )}
                             </td>
-                            <td><b>{entry.hours}h</b></td>
-                            <td>
+                            <td className="sip-td-hours"><b>{entry.hours}h</b></td>
+                            <td className="sip-td-status">
                               <span className={`sip-ebadge ${entry.status === 'Confirmed' ? 'sip-ebadge-conf' : 'sip-ebadge-pend'}`}>
                                 {entry.status}
                               </span>
@@ -179,8 +190,8 @@ function InternModal({ intern, onClose }) {
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colSpan={3}>Week Total</td>
-                          <td><b>{week.totalHours}h</b></td>
+                          <td colSpan="3" className="sip-tfoot-label">Week Total</td>
+                          <td className="sip-tfoot-hours"><b>{week.totalHours}h</b></td>
                           <td></td>
                         </tr>
                       </tfoot>
@@ -200,8 +211,137 @@ function InternModal({ intern, onClose }) {
   );
 }
 
+// ========== Main Component ==========
 export default function SupervisorInternProgress() {
+  const [trainees, setTrainees] = useState([]);
   const [selectedTrainee, setSelectedTrainee] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // جلب الطلبات من الـ API
+  const fetchApplications = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await applicationApi.university();
+      const applications = response.applications || [];
+      
+      // تصفية الطلبات النشطة (في التدريب أو مكتملة)
+      const activeApps = applications.filter(app => 
+        app.status === "in_training" || 
+        app.status === "completed" ||
+        app.status === "company_final_approved"
+      );
+      
+      // تحويل البيانات إلى صيغة الواجهة
+      const mappedTrainees = await Promise.all(
+        activeApps.map(async (app) => {
+          const student = app.studentId || {};
+          const training = app.trainingId || {};
+          const company = app.companyId || {};
+          
+          const firstName = student.firstName || "";
+          const lastName = student.lastName || "";
+          const fullName = `${firstName} ${lastName}`.trim() || "Unknown";
+          const initials = firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??";
+          
+          // جلب السجلات
+          const logsData = await fetchLogsForApplication(app._id);
+          let hoursDone = 0;
+          let confirmed = 0;
+          let totalConfirmed = 0;
+          let weeks = [];
+          
+          if (logsData && logsData.stats) {
+            hoursDone = logsData.stats.confirmedHours || 0;
+            confirmed = logsData.stats.confirmedLogs || 0;
+            totalConfirmed = logsData.stats.totalLogs || 0;
+            weeks = buildWeeksFromLogs(logsData.logs || []);
+          }
+          
+          const targetHours = training.totalHours || 150;
+          const progress = Math.round((hoursDone / targetHours) * 100);
+          
+          // تحديد حالة المتدرب
+          let status = "In Progress";
+          let statusClass = "sip-badge-progress";
+          if (progress >= 100) {
+            status = "Completed";
+            statusClass = "sip-badge-completed";
+          } else if (progress < 30) {
+            status = "Behind";
+            statusClass = "sip-badge-behind";
+          }
+          
+          return {
+            id: app._id,
+            applicationId: app._id,
+            name: fullName,
+            idNum: student.studentID || "N/A",
+            initials: initials,
+            color: "#f0e6ff",
+            textColor: "#7c5cbf",
+            company: company.name || "N/A",
+            department: student.major || "N/A",
+            status: status,
+            statusClass: statusClass,
+            hoursDone: hoursDone,
+            targetHours: targetHours,
+            confirmed: confirmed,
+            totalConfirmed: totalConfirmed,
+            progress: progress,
+            weeks: weeks,
+          };
+        })
+      );
+      
+      setTrainees(mappedTrainees);
+    } catch (err) {
+      console.error("Error fetching applications:", err);
+      setError(err.message || "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchApplications();
+  }, []);
+
+  // حساب الإحصائيات
+  const totalTrainees = trainees.length;
+  const avgProgress = trainees.length > 0 
+    ? Math.round(trainees.reduce((sum, t) => sum + t.progress, 0) / trainees.length) 
+    : 0;
+  const completedCount = trainees.filter(t => t.status === "Completed").length;
+  const behindCount = trainees.filter(t => t.status === "Behind").length;
+
+  const refreshData = () => {
+    fetchApplications();
+    setSelectedTrainee(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="sip-page">
+        <div className="sip-loading">
+          <FaSpinner className="spinner" />
+          <p>Loading interns...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="sip-page">
+        <div className="sip-error">
+          <p>{error}</p>
+          <button onClick={refreshData} className="sip-retry-btn">Try Again</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="sip-page">
@@ -214,35 +354,38 @@ export default function SupervisorInternProgress() {
         <div className="sip-tstat-card">
           <div className="sip-tstat-icon sip-icon-purple"><FaUserFriends /></div>
           <div className="sip-tstat-info">
-            <span className="sip-tstat-val">4</span>
+            <span className="sip-tstat-val">{totalTrainees}</span>
             <span className="sip-tstat-lbl">Trainees</span>
           </div>
         </div>
         <div className="sip-tstat-card">
           <div className="sip-tstat-icon sip-icon-purple"><FaRegClock /></div>
           <div className="sip-tstat-info">
-            <span className="sip-tstat-val">66%</span>
+            <span className="sip-tstat-val">{avgProgress}%</span>
             <span className="sip-tstat-lbl">Avg Progress</span>
           </div>
         </div>
         <div className="sip-tstat-card">
           <div className="sip-tstat-icon sip-icon-green"><FaCheckCircle /></div>
           <div className="sip-tstat-info">
-            <span className="sip-tstat-val">1</span>
+            <span className="sip-tstat-val">{completedCount}</span>
             <span className="sip-tstat-lbl">Completed</span>
           </div>
         </div>
         <div className="sip-tstat-card">
           <div className="sip-tstat-icon sip-icon-red"><FaExclamationCircle /></div>
           <div className="sip-tstat-info">
-            <span className="sip-tstat-val">1</span>
+            <span className="sip-tstat-val">{behindCount}</span>
             <span className="sip-tstat-lbl">Behind</span>
           </div>
         </div>
       </div>
 
       <div className="sip-list">
-        {MOCK_TRAINEES.map((t) => (
+        {trainees.length === 0 && (
+          <div className="sip-empty">No interns found.</div>
+        )}
+        {trainees.map((t) => (
           <div key={t.id} className="sip-card" onClick={() => setSelectedTrainee(t)}>
             <div className="sip-card-content">
               <div className="sip-avatar" style={{ background: t.color, color: t.textColor }}>
@@ -276,7 +419,11 @@ export default function SupervisorInternProgress() {
       </div>
 
       {selectedTrainee && (
-        <InternModal intern={selectedTrainee} onClose={() => setSelectedTrainee(null)} />
+        <InternModal 
+          intern={selectedTrainee} 
+          onClose={() => setSelectedTrainee(null)} 
+          onRefresh={refreshData}
+        />
       )}
     </div>
   );
