@@ -4,7 +4,7 @@ import {
   FaPaperPlane, FaExclamationTriangle, FaBuilding,
   FaSpinner
 } from "react-icons/fa";
-import { applicationApi, notificationApi } from "../../api/client";
+import { applicationApi, notificationApi } from "../api/client";
 
 function ApplicationModal({ app, onClose, onAction, isProcessing }) {
   if (!app) return null;
