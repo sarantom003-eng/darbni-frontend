@@ -3,12 +3,19 @@ import {
   FaUserFriends, FaRegClock, FaCheckCircle,
   FaChevronRight, FaChevronDown, FaRegCommentDots, FaSpinner
 } from "react-icons/fa";
-import { applicationApi, logApi } from "../api/client";
+import { applicationApi, getToken } from "../api/client";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 // ========== جلب السجلات ==========
 const fetchLogsForApplication = async (applicationId) => {
   try {
-    return await logApi.get(applicationId);
+    const token = getToken();
+    const response = await fetch(`${API_BASE_URL}/logs/${applicationId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!response.ok) return null;
+    return await response.json();
   } catch (err) {
     console.error("Error fetching logs:", err);
     return null;
@@ -203,7 +210,6 @@ export default function SupervisorInternProgress() {
         let hoursDone = 0, confirmed = 0, totalConfirmed = 0, weeks = [], targetHours = 160;
 
         if (logsData && logsData.stats) {
-          // ✅ استخدام requiredHours من الـ stats مباشرة
           targetHours = logsData.stats.requiredHours || training.totalHours || 160;
           hoursDone = logsData.stats.confirmedHours || 0;
           confirmed = logsData.stats.confirmedLogs || 0;
