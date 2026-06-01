@@ -2,32 +2,30 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   FaSignOutAlt, FaBell, FaChevronDown, FaKey,
-  FaTh, FaUniversity, FaUserShield, FaUserGraduate, FaCog
+  FaTh, FaUniversity, FaUserShield, FaUserGraduate,
+  FaCog, FaEnvelope, FaSpinner
 } from "react-icons/fa";
+import { notificationApi, profileApi } from "../api/client";
 
 const NAV = [
-  { label: "Dashboard",    to: "/superadmin",              icon: <FaTh /> },
-  { label: "Universities", to: "/superadmin/universities", icon: <FaUniversity /> },
-  { label: "Supervisors",  to: "/superadmin/supervisors",  icon: <FaUserShield /> },
-  { label: "Students",     to: "/superadmin/students",     icon: <FaUserGraduate /> },
-  { label: "Settings",     to: "/superadmin/settings",     icon: <FaCog /> },
-];
-
-const MOCK_NOTIFS = [
-  { id: 1, title: "New University",  msg: "Birzeit University requested activation.",    time: "2 hours ago", read: false },
-  { id: 2, title: "New Supervisor",  msg: "A new supervisor registered from An-Najah.", time: "5 hours ago", read: false },
-  { id: 3, title: "System Update",   msg: "Platform statistics have been updated.",      time: "1 day ago",   read: true  },
+  { label: "Dashboard",        to: "/superadmin",              icon: <FaTh /> },
+  { label: "Universities",     to: "/superadmin/universities", icon: <FaUniversity /> },
+  { label: "Supervisors",      to: "/superadmin/supervisors",  icon: <FaUserShield /> },
+  { label: "Students",         to: "/superadmin/students",     icon: <FaUserGraduate /> },
+  { label: "Contact Messages", to: "/superadmin/messages",     icon: <FaEnvelope /> },
+  { label: "Settings",         to: "/superadmin/settings",     icon: <FaCog /> },
 ];
 
 function ChangePasswordModal({ onClose }) {
-  const [cur,     setCur]     = useState("");
-  const [nw,      setNw]      = useState("");
+  const [cur, setCur] = useState("");
+  const [nw, setNw] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showCur, setShowCur] = useState(false);
-  const [showNw,  setShowNw]  = useState(false);
+  const [showNw, setShowNw] = useState(false);
   const [showCon, setShowCon] = useState(false);
-  const [err,     setErr]     = useState("");
+  const [err, setErr] = useState("");
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const canSubmit =
     cur.trim().length >= 6 &&
@@ -36,14 +34,23 @@ function ChangePasswordModal({ onClose }) {
     nw === confirm &&
     nw !== cur;
 
-  const handleUpdate = () => {
+  // ✅ مربوط بالـ API
+  const handleUpdate = async () => {
     if (!cur || !nw || !confirm) { setErr("Please fill in all fields."); return; }
-    if (nw.length < 6)           { setErr("New password must be at least 6 characters."); return; }
-    if (nw === cur)              { setErr("New password must be different from current."); return; }
-    if (nw !== confirm)          { setErr("Passwords do not match."); return; }
+    if (nw.length < 6) { setErr("New password must be at least 6 characters."); return; }
+    if (nw === cur) { setErr("New password must be different from current."); return; }
+    if (nw !== confirm) { setErr("Passwords do not match."); return; }
     setErr("");
-    setSuccess(true);
-    setTimeout(onClose, 1500);
+    setLoading(true);
+    try {
+      await profileApi.changePassword({ currentPassword: cur, newPassword: nw });
+      setSuccess(true);
+      setTimeout(onClose, 1500);
+    } catch (e) {
+      setErr(e.message || "Failed to update password");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const EyeIcon = ({ show }) => show
@@ -70,12 +77,9 @@ function ChangePasswordModal({ onClose }) {
           <div className="login-pw-wrap">
             <input
               className={`login-inp${err && !cur ? " error" : cur.length >= 6 ? " ok" : ""}`}
-              type={showCur ? "text" : "password"}
-              placeholder="••••••••"
-              value={cur}
-              autoComplete="current-password"
-              onChange={e => { setCur(e.target.value); setErr(""); }}
-            />
+              type={showCur ? "text" : "password"} placeholder="••••••••"
+              value={cur} autoComplete="current-password"
+              onChange={e => { setCur(e.target.value); setErr(""); }} />
             <button className="login-eye-btn" type="button" onClick={() => setShowCur(!showCur)}>
               <EyeIcon show={showCur} />
             </button>
@@ -87,21 +91,14 @@ function ChangePasswordModal({ onClose }) {
           <div className="login-pw-wrap">
             <input
               className={`login-inp${err && !nw ? " error" : nw.length >= 6 && nw !== cur ? " ok" : ""}`}
-              type={showNw ? "text" : "password"}
-              placeholder="••••••••"
-              value={nw}
-              autoComplete="new-password"
-              onChange={e => { setNw(e.target.value); setErr(""); }}
-            />
+              type={showNw ? "text" : "password"} placeholder="••••••••"
+              value={nw} autoComplete="new-password"
+              onChange={e => { setNw(e.target.value); setErr(""); }} />
             <button className="login-eye-btn" type="button" onClick={() => setShowNw(!showNw)}>
               <EyeIcon show={showNw} />
             </button>
           </div>
-          {nw && nw === cur && (
-            <div style={{ color: "#e67e22", fontSize: 12, marginTop: 4 }}>
-              New password must be different from current
-            </div>
-          )}
+          {nw && nw === cur && <div style={{ color: "#e67e22", fontSize: 12, marginTop: 4 }}>New password must be different from current</div>}
         </div>
 
         <div className="profile-field">
@@ -109,28 +106,23 @@ function ChangePasswordModal({ onClose }) {
           <div className="login-pw-wrap">
             <input
               className={`login-inp${confirm && confirm !== nw ? " error" : confirm && confirm === nw && confirm.length >= 6 ? " ok" : ""}`}
-              type={showCon ? "text" : "password"}
-              placeholder="••••••••"
-              value={confirm}
-              autoComplete="new-password"
-              onChange={e => { setConfirm(e.target.value); setErr(""); }}
-            />
+              type={showCon ? "text" : "password"} placeholder="••••••••"
+              value={confirm} autoComplete="new-password"
+              onChange={e => { setConfirm(e.target.value); setErr(""); }} />
             <button className="login-eye-btn" type="button" onClick={() => setShowCon(!showCon)}>
               <EyeIcon show={showCon} />
             </button>
           </div>
-          {confirm && confirm !== nw && (
-            <div style={{ color: "#e74c3c", fontSize: 12, marginTop: 4 }}>Passwords do not match</div>
-          )}
+          {confirm && confirm !== nw && <div style={{ color: "#e74c3c", fontSize: 12, marginTop: 4 }}>Passwords do not match</div>}
           {err && <div style={{ color: "#e74c3c", fontSize: 12, marginTop: 5 }}>{err}</div>}
         </div>
 
         <div className="modal-actions" style={{ marginTop: 20 }}>
-          <button className="modal-cancel" onClick={onClose}>Cancel</button>
+          <button className="modal-cancel" onClick={onClose} disabled={loading}>Cancel</button>
           <button className="modal-submit" onClick={handleUpdate}
-            disabled={!canSubmit}
-            style={{ opacity: canSubmit ? 1 : 0.5, cursor: canSubmit ? "pointer" : "not-allowed" }}>
-            Update Password
+            disabled={!canSubmit || loading}
+            style={{ opacity: canSubmit && !loading ? 1 : 0.5, cursor: canSubmit && !loading ? "pointer" : "not-allowed" }}>
+            {loading ? <FaSpinner className="spinner" /> : "Update Password"}
           </button>
         </div>
       </div>
@@ -139,18 +131,21 @@ function ChangePasswordModal({ onClose }) {
 }
 
 export default function SuperAdminLayout() {
-  const navigate  = useNavigate();
-  const location  = useLocation();
-  const dropRef   = useRef(null);
-  const notifRef  = useRef(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const dropRef = useRef(null);
+  const notifRef = useRef(null);
 
-  const [showDrop,    setShowDrop]    = useState(false);
-  const [showNotif,   setShowNotif]   = useState(false);
+  const [showDrop, setShowDrop] = useState(false);
+  const [showNotif, setShowNotif] = useState(false);
   const [showPwModal, setShowPwModal] = useState(false);
-  const [notifs,      setNotifs]      = useState(MOCK_NOTIFS);
-  const [topbarLogo,  setTopbarLogo]  = useState(() => localStorage.getItem("adminLogo") || null);
 
-  const unread = notifs.filter(n => !n.read).length;
+  // ✅ notifications من الـ API
+  const [notifs, setNotifs] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const [topbarLogo, setTopbarLogo] = useState(() => localStorage.getItem("adminLogo") || null);
+
+  const email = localStorage.getItem("email") || "admin@darbni.com";
 
   useEffect(() => {
     const handler = () => setTopbarLogo(localStorage.getItem("adminLogo") || null);
@@ -158,20 +153,55 @@ export default function SuperAdminLayout() {
     return () => window.removeEventListener("adminLogoUpdated", handler);
   }, []);
 
+  // ✅ جلب الإشعارات
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      try {
+        const [listRes, countRes] = await Promise.allSettled([
+          notificationApi.list(),
+          notificationApi.unreadCount(),
+        ]);
+        if (listRes.status === "fulfilled") setNotifs(listRes.value.notifications || []);
+        if (countRes.status === "fulfilled") setUnread(countRes.value.unreadCount || 0);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const markAllRead = async () => {
+    try {
+      await notificationApi.markAllRead();
+      setNotifs(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnread(0);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const markRead = async (id) => {
+    try {
+      await notificationApi.markRead(id);
+      setNotifs(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+      setUnread(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const isActive = (to) => {
     if (to === "/superadmin") return location.pathname === "/superadmin";
     return location.pathname.startsWith(to);
   };
 
-  const email = localStorage.getItem("email") || "admin@darbni.com";
   const handleLogout = () => { localStorage.clear(); navigate("/login"); };
-  const markAllRead  = () => setNotifs(ns => ns.map(n => ({ ...n, read: true })));
-  const markRead     = (id) => setNotifs(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
-  const deleteNotif  = (id) => setNotifs(ns => ns.filter(n => n.id !== id));
 
   useEffect(() => {
     const handler = (e) => {
-      if (dropRef.current  && !dropRef.current.contains(e.target))  setShowDrop(false);
+      if (dropRef.current && !dropRef.current.contains(e.target)) setShowDrop(false);
       if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotif(false);
     };
     document.addEventListener("mousedown", handler);
@@ -223,18 +253,25 @@ export default function SuperAdminLayout() {
                   <button className="notif-read-all" onClick={markAllRead}>✓ Read All</button>
                 </div>
                 <div className="notif-list">
+                  {notifs.length === 0 && (
+                    <div style={{ padding: 20, textAlign: "center", color: "#aaa" }}>No notifications</div>
+                  )}
                   {notifs.map(n => (
-                    <div key={n.id} className={`notif-item${n.read ? "" : " unread"}`}>
-                      <div className="notif-item-title">{n.title}</div>
-                      <div className="notif-item-msg">{n.msg}</div>
-                      <div className="notif-item-time">{n.time}</div>
-                      <div className="notif-item-actions">
-                        {!n.read && <button onClick={() => markRead(n.id)}>✓ Mark as Read</button>}
-                        <button onClick={() => deleteNotif(n.id)}>🗑 Delete</button>
+                    <div key={n._id} className={`notif-item${n.isRead ? "" : " unread"}`}>
+                      <div className="notif-item-title">{n.type || "Notification"}</div>
+                      <div className="notif-item-msg">{n.message}</div>
+                      <div className="notif-item-time">
+                        {n.createdAt ? new Date(n.createdAt).toLocaleDateString() : ""}
                       </div>
+                      {!n.isRead && (
+                        <div className="notif-item-actions">
+                          <button onClick={() => markRead(n._id)}>✓ Mark as Read</button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
+                <div className="notif-view-all" onClick={() => setShowNotif(false)}>Close</div>
               </div>
             )}
           </div>

@@ -13,6 +13,8 @@ import AdminUniversities from "./pages/AdminUniversities.jsx";
 import AdminSupervisors from "./pages/AdminSupervisors.jsx";
 import AdminStudents from "./pages/AdminStudents.jsx";
 import AdminSettings from "./pages/AdminSettings.jsx";
+// ✅ أضفنا ContactMessages للـ superadmin
+import ContactMessages from "./pages/ContactMessages.jsx";
 import SuperAdminLayout from "./components/SuperAdminLayout.jsx";
 import StudentLayout from "./components/StudentLayout.jsx";
 import StudentDashboard from "./pages/StudentDashboard.jsx";
@@ -40,8 +42,8 @@ import ManageCompanies from "./pages/ManageCompanies.jsx";
 import ReviewApplications from "./pages/ReviewApplications.jsx";
 import SupervisorInternProgress from "./pages/SupervisorInternProgress.jsx";
 import SupervisorFinalReports from "./pages/SupervisorFinalReports.jsx";
-import SupervisorContactMessages from "./pages/SupervisorContactMessages.jsx";
 import SupervisorUniversitySettings from "./pages/SupervisorUniversitySettings.jsx";
+// ✅ حذفنا import SupervisorContactMessages
 
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
@@ -62,6 +64,8 @@ const router = createBrowserRouter([
       { path: "universities", element: <AdminUniversities /> },
       { path: "supervisors",  element: <AdminSupervisors /> },
       { path: "students",     element: <AdminStudents /> },
+      // ✅ أضفنا Contact Messages للـ superadmin
+      { path: "messages",     element: <ContactMessages /> },
       { path: "settings",     element: <AdminSettings /> },
     ],
   },
@@ -86,7 +90,7 @@ const router = createBrowserRouter([
       { path: "applications", element: <ReviewApplications /> },
       { path: "progress",     element: <SupervisorInternProgress /> },
       { path: "reports",      element: <SupervisorFinalReports /> },
-      { path: "messages",     element: <SupervisorContactMessages /> },
+      // ✅ حذفنا messages من هون
       { path: "settings",     element: <SupervisorUniversitySettings /> },
     ],
   },
