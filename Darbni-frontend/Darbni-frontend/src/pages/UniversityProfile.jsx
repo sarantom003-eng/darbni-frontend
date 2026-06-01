@@ -1,23 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   FaUserTie, FaUniversity, FaPencilAlt, FaCheck, FaTimes,
-  FaCamera, FaEnvelope, FaPhone, FaGlobe, FaMapMarkerAlt
+  FaCamera, FaEnvelope, FaPhone, FaGlobe, FaMapMarkerAlt, FaSpinner
 } from "react-icons/fa";
-
-const DEFAULT_SUPERVISOR = {
-  fullName:   "Dr. Mariam Al-Khatib",
-  title:      "Training Coordinator",
-  email:      "m.alkhatib@university.edu",
-  phone:      "+962 79 123 4567",
-  department: "Computer Science",
-};
-
-const DEFAULT_UNIVERSITY = {
-  name:    "Jordan University of Science & Technology",
-  address: "Irbid, Jordan",
-  website: "https://just.edu.jo",
-  about:   "Overseeing student internship programs and ensuring quality training experiences across partner companies.",
-};
+import { profileApi, api } from "../api/client";
 
 function ReadField({ label, value, icon }) {
   return (
@@ -71,73 +57,164 @@ function EditTextarea({ label, value, onChange, rows = 4 }) {
 
 export default function UniversityProfile() {
   const [editing, setEditing] = useState(false);
-  const [toast,   setToast]   = useState(false);
-  const [errors,  setErrors]  = useState({});
+  const [toast, setToast] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const [supervisor,  setSupervisor]  = useState(DEFAULT_SUPERVISOR);
-  const [supDraft,    setSupDraft]    = useState(DEFAULT_SUPERVISOR);
-  const [university,  setUniversity]  = useState(DEFAULT_UNIVERSITY);
-  const [uniDraft,    setUniDraft]    = useState(DEFAULT_UNIVERSITY);
+  // ✅ بيانات المشرف
+  const [supervisor, setSupervisor] = useState({
+    firstName: "", lastName: "", title: "",
+    email: "", phone: "", department: "", avatar: "",
+  });
+  const [supDraft, setSupDraft] = useState({ ...supervisor });
 
-  const [avatar,      setAvatar]      = useState(null);
-  const [avatarDraft, setAvatarDraft] = useState(null);
+  // ✅ بيانات الجامعة
+  const [university, setUniversity] = useState({
+    name: "", address: "", website: "", about: "",
+  });
+  const [uniDraft, setUniDraft] = useState({ ...university });
 
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
   const avatarRef = useRef();
+
+  // ✅ جلب البيانات
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [profileRes, settingsRes] = await Promise.allSettled([
+          profileApi.me(),
+          api("/supervisor/settings"),
+        ]);
+
+        if (profileRes.status === "fulfilled") {
+          const p = profileRes.value.profile || {};
+          const email = profileRes.value.email || "";
+          setSupervisor({
+            firstName: p.firstName || "",
+            lastName: p.lastName || "",
+            title: p.title || "",
+            email: email,
+            phone: p.phone || "",
+            department: p.department || "",
+            avatar: p.avatar || "",
+          });
+          if (p.avatar) setAvatarPreview(p.avatar);
+        }
+
+        if (settingsRes.status === "fulfilled") {
+          const u = settingsRes.value.university || {};
+          setUniversity({
+            name: u.name || "",
+            address: u.address || "",
+            website: u.website || "",
+            about: u.about || "",
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const startEdit = () => {
     setSupDraft({ ...supervisor });
     setUniDraft({ ...university });
-    setAvatarDraft(avatar);
     setErrors({});
     setEditing(true);
   };
 
-  const cancelEdit = () => { setEditing(false); setErrors({}); };
+  const cancelEdit = () => {
+    setEditing(false);
+    setErrors({});
+    setAvatarFile(null);
+  };
 
   const validate = () => {
     const e = {};
-    if (!supDraft.fullName.trim())  e.fullName = true;
-    if (!supDraft.title.trim())     e.title    = true;
-    if (!supDraft.email.trim())     e.email    = true;
-    if (!uniDraft.name.trim())      e.uniName  = true;
+    if (!supDraft.firstName.trim()) e.firstName = true;
+    if (!supDraft.title.trim()) e.title = true;
+    if (!uniDraft.name.trim()) e.uniName = true;
     return e;
   };
 
-  const save = () => {
+  const save = async () => {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
-    setSupervisor({ ...supDraft });
-    setUniversity({ ...uniDraft });
-    setAvatar(avatarDraft);
-    setEditing(false);
-    setErrors({});
-    setToast(true);
-    setTimeout(() => setToast(false), 3000);
+
+    setSaving(true);
+    try {
+      // ✅ رفع الصورة لو تغيرت
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append("avatar", avatarFile);
+        await api("/upload/avatar", { method: "POST", body: formData });
+      }
+
+      // ✅ تعديل بيانات المشرف
+      await profileApi.update({
+        firstName: supDraft.firstName,
+        lastName: supDraft.lastName,
+        title: supDraft.title,
+        phone: supDraft.phone,
+        department: supDraft.department,
+      });
+
+      // ✅ تعديل بيانات الجامعة
+      await api("/supervisor/settings", {
+        method: "PUT",
+        body: {
+          name: uniDraft.name,
+          address: uniDraft.address,
+          website: uniDraft.website,
+          about: uniDraft.about,
+        },
+      });
+
+      setSupervisor({ ...supDraft });
+      setUniversity({ ...uniDraft });
+      setEditing(false);
+      setErrors({});
+      setAvatarFile(null);
+      setToast(true);
+      setTimeout(() => setToast(false), 3000);
+    } catch (err) {
+      alert(`Error saving: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    editing ? setAvatarDraft(url) : setAvatar(url);
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
-  const sup = editing ? supDraft   : supervisor;
-  const uni = editing ? uniDraft   : university;
-  const currentAvatar = editing ? avatarDraft : avatar;
-  const initials = sup.fullName
-    .split(" ")
-    .map(w => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const sup = editing ? supDraft : supervisor;
+  const uni = editing ? uniDraft : university;
+  const fullName = `${sup.firstName} ${sup.lastName}`.trim();
+  const initials = fullName
+    ? fullName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+    : "??";
+
+  if (loading) return (
+    <div className="cp-page" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
+      <FaSpinner className="spinner" />
+    </div>
+  );
 
   return (
     <>
       <input ref={avatarRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleAvatarChange} />
 
       <div className="cp-page">
-
         {/* ── Page Header ── */}
         <div className="cp-page-header">
           <div>
@@ -150,11 +227,11 @@ export default function UniversityProfile() {
             </button>
           ) : (
             <div className="cp-btn-group">
-              <button className="cp-btn-cancel" onClick={cancelEdit}>
+              <button className="cp-btn-cancel" onClick={cancelEdit} disabled={saving}>
                 <FaTimes size={13} /> Cancel
               </button>
-              <button className="cp-btn-save" onClick={save}>
-                <FaCheck size={13} /> Save Changes
+              <button className="cp-btn-save" onClick={save} disabled={saving}>
+                {saving ? <FaSpinner className="spinner" /> : <FaCheck size={13} />} Save Changes
               </button>
             </div>
           )}
@@ -163,21 +240,21 @@ export default function UniversityProfile() {
         {/* ── Banner + Avatar ── */}
         <div style={{ position: "relative" }}>
           <div className="cp-hero" />
-          <div className="cp-logo-wrap" onClick={() => avatarRef.current?.click()}>
-            {currentAvatar
-              ? <img src={currentAvatar} alt="avatar" className="cp-logo-img" />
-              : <FaUserTie className="cp-logo-icon" />
+          <div className="cp-logo-wrap" onClick={() => editing && avatarRef.current?.click()}>
+            {avatarPreview
+              ? <img src={avatarPreview} alt="avatar" className="cp-logo-img" />
+              : <div className="cp-logo-initials">{initials}</div>
             }
-            <div className="cp-logo-overlay"><FaCamera /></div>
+            {editing && <div className="cp-logo-overlay"><FaCamera /></div>}
           </div>
         </div>
 
         <div className="cp-hero-bottom">
           <div className="cp-hero-company-name">{uni.name}</div>
           <div className="cp-hero-tags">
-            <span className="cp-hero-tag">🎓 {sup.title}</span>
-            <span className="cp-hero-tag">💻 {sup.department}</span>
-            <span className="cp-hero-tag">📍 {uni.address}</span>
+            <span className="cp-hero-tag">🎓 {sup.title || "—"}</span>
+            <span className="cp-hero-tag">💻 {sup.department || "—"}</span>
+            <span className="cp-hero-tag">📍 {uni.address || "—"}</span>
           </div>
         </div>
 
@@ -190,26 +267,32 @@ export default function UniversityProfile() {
             {!editing ? (
               <>
                 <div className="cp-row-2">
-                  <ReadField label="Full Name" value={sup.fullName} />
+                  <ReadField label="First Name" value={sup.firstName} />
+                  <ReadField label="Last Name" value={sup.lastName} />
+                </div>
+                <div className="cp-row-2">
                   <ReadField label="Title" value={sup.title} />
+                  <ReadField label="Department" value={sup.department} />
                 </div>
                 <div className="cp-row-2">
                   <ReadField label="Email" value={sup.email} icon={<FaEnvelope />} />
                   <ReadField label="Phone" value={sup.phone} icon={<FaPhone />} />
                 </div>
-                <ReadField label="Department" value={sup.department} />
               </>
             ) : (
               <>
                 <div className="cp-row-2">
-                  <EditField label="Full Name" value={supDraft.fullName} onChange={v => setSupDraft(p => ({ ...p, fullName: v }))} required hasErr={errors.fullName} />
-                  <EditField label="Title" value={supDraft.title} onChange={v => setSupDraft(p => ({ ...p, title: v }))} required hasErr={errors.title} />
+                  <EditField label="First Name" value={supDraft.firstName} onChange={v => setSupDraft(p => ({ ...p, firstName: v }))} required hasErr={errors.firstName} />
+                  <EditField label="Last Name" value={supDraft.lastName} onChange={v => setSupDraft(p => ({ ...p, lastName: v }))} />
                 </div>
                 <div className="cp-row-2">
-                  <EditField label="Email" type="email" value={supDraft.email} onChange={v => setSupDraft(p => ({ ...p, email: v }))} required hasErr={errors.email} icon={<FaEnvelope />} />
+                  <EditField label="Title" value={supDraft.title} onChange={v => setSupDraft(p => ({ ...p, title: v }))} required hasErr={errors.title} />
+                  <EditField label="Department" value={supDraft.department} onChange={v => setSupDraft(p => ({ ...p, department: v }))} />
+                </div>
+                <div className="cp-row-2">
+                  <ReadField label="Email" value={supDraft.email} icon={<FaEnvelope />} />
                   <EditField label="Phone" value={supDraft.phone} onChange={v => setSupDraft(p => ({ ...p, phone: v }))} icon={<FaPhone />} />
                 </div>
-                <EditField label="Department" value={supDraft.department} onChange={v => setSupDraft(p => ({ ...p, department: v }))} />
               </>
             )}
           </div>
