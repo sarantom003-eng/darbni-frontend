@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   FaSearch, FaBuilding, FaCheck, FaTimes, FaEnvelope,
   FaPhone, FaGlobe, FaMapMarkerAlt, FaCalendarAlt, FaUserTie,
-  FaIdBadge, FaClock, FaSpinner, FaExclamationTriangle
+  FaIdBadge, FaClock, FaSpinner, FaExclamationTriangle, FaBan
 } from "react-icons/fa";
 import { api } from "../api/client";
 
@@ -20,7 +20,57 @@ const statusLabel = (status) => {
   return status;
 };
 
-function CompanyModal({ company, onClose, onApprove, onReject, isProcessing }) {
+function RejectModal({ isOpen, onClose, onConfirm, isProcessing }) {
+  const [reason, setReason] = useState("");
+
+  if (!isOpen) return null;
+
+  const handleSubmit = () => {
+    if (!reason.trim()) {
+      alert("Please enter a rejection reason");
+      return;
+    }
+    onConfirm(reason);
+    setReason("");
+  };
+
+  return (
+    <div className="mc-overlay" onClick={onClose}>
+      <div className="mc-modal mc-modal-sm" onClick={e => e.stopPropagation()}>
+        <button className="mc-modal-close" onClick={onClose} disabled={isProcessing}>
+          <FaTimes />
+        </button>
+        <div className="mc-modal-icon mc-modal-icon-danger">
+          <FaBan />
+        </div>
+        <h3 className="mc-modal-title">Reject Company</h3>
+        <p className="mc-modal-sub">Please provide a reason for rejecting this company</p>
+        <div className="mc-form-group">
+          <label>Rejection Reason</label>
+          <textarea
+            className="mc-textarea"
+            rows="3"
+            placeholder="e.g., Incomplete information, Invalid company, etc."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            disabled={isProcessing}
+          />
+        </div>
+        <div className="mc-modal-footer">
+          <button className="mc-btn-close" onClick={onClose} disabled={isProcessing}>
+            Cancel
+          </button>
+          <button className="mc-btn-reject" onClick={handleSubmit} disabled={isProcessing}>
+            {isProcessing ? <FaSpinner className="spinner" /> : <FaTimes />}
+            Confirm Rejection
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompanyModal({ company, onClose, onApprove, onRejectClick, isProcessing }) {
   if (!company) return null;
   const sc = statusColor(company.status);
 
@@ -28,8 +78,10 @@ function CompanyModal({ company, onClose, onApprove, onReject, isProcessing }) {
     <div className="mc-overlay" onClick={onClose}>
       <div className="mc-modal" onClick={e => e.stopPropagation()}>
         <button className="mc-modal-close" onClick={onClose}><FaTimes /></button>
+
         <h3 className="mc-modal-title">Company Profile</h3>
         <p className="mc-modal-sub">Full details from the company record.</p>
+
         <div className="mc-modal-head">
           <div className="mc-modal-avatar"><FaBuilding /></div>
           <div>
@@ -42,7 +94,9 @@ function CompanyModal({ company, onClose, onApprove, onReject, isProcessing }) {
             </div>
           </div>
         </div>
+
         <div className="mc-modal-about">{company.about || "—"}</div>
+
         <div className="mc-modal-grid">
           <div className="mc-modal-field">
             <div className="mc-modal-field-label"><FaEnvelope /> Email</div>
@@ -81,15 +135,16 @@ function CompanyModal({ company, onClose, onApprove, onReject, isProcessing }) {
             <div className="mc-modal-field-val">{company.createdAt ? new Date(company.createdAt).toLocaleDateString() : "N/A"}</div>
           </div>
         </div>
+
         <div className="mc-modal-footer">
           {company.status === "approved" && (
-            <button className="mc-btn-revoke" onClick={() => { onReject(company.userId); onClose(); }} disabled={isProcessing}>
+            <button className="mc-btn-revoke" onClick={() => { onRejectClick(company.userId); onClose(); }} disabled={isProcessing}>
               {isProcessing ? <FaSpinner className="spinner" /> : null} Revoke Approval
             </button>
           )}
           {company.status === "pending" && (
             <>
-              <button className="mc-btn-reject" onClick={() => { onReject(company.userId); onClose(); }} disabled={isProcessing}>
+              <button className="mc-btn-reject" onClick={() => { onRejectClick(company.userId); onClose(); }} disabled={isProcessing}>
                 <FaTimes /> Reject
               </button>
               <button className="mc-btn-approve" onClick={() => { onApprove(company.userId); onClose(); }} disabled={isProcessing}>
@@ -110,6 +165,7 @@ export default function ManageCompanies() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [rejectUserId, setRejectUserId] = useState(null);
 
   const mapCompany = (c, defaultStatus) => ({
     userId: c.user?._id || "",
@@ -134,14 +190,22 @@ export default function ManageCompanies() {
         api("/supervisor/companies/pending"),
         api("/supervisor/companies"),
       ]);
+
       const pending = pendingRes.status === "fulfilled"
         ? (pendingRes.value.companies || []).map(c => mapCompany(c, "pending"))
         : [];
+
       const approved = approvedRes.status === "fulfilled"
         ? (approvedRes.value.companies || []).map(c => mapCompany(c, "approved"))
         : [];
+
       const allIds = new Set(pending.map(c => c.userId));
-      setCompanies([...pending, ...approved.filter(c => !allIds.has(c.userId))]);
+      const merged = [
+        ...pending,
+        ...approved.filter(c => !allIds.has(c.userId)),
+      ];
+
+      setCompanies(merged);
     } catch (err) {
       setError(err.message || "Failed to load companies");
     } finally {
@@ -151,7 +215,6 @@ export default function ManageCompanies() {
 
   useEffect(() => { fetchCompanies(); }, []);
 
-  // ✅ approve بدون body
   const handleApprove = async (userId) => {
     setIsProcessing(true);
     try {
@@ -164,12 +227,16 @@ export default function ManageCompanies() {
     }
   };
 
-  // ✅ reject بدون سبب
-  const handleReject = async (userId) => {
+  // ✅ بتبعت rejectionReason مع الـ reject
+  const handleReject = async (userId, reason) => {
     setIsProcessing(true);
     try {
-      await api(`/supervisor/companies/${userId}/reject`, { method: "PATCH" });
+      await api(`/supervisor/companies/${userId}/reject`, {
+        method: "PATCH",
+        body: { rejectionReason: reason },
+      });
       await fetchCompanies();
+      setRejectUserId(null);
     } catch (err) {
       alert(`Error: ${err.message}`);
     } finally {
@@ -209,6 +276,7 @@ export default function ManageCompanies() {
         <h1 className="mc-title">Manage Companies</h1>
         <p className="mc-sub">Approve or reject company registrations</p>
       </div>
+
       <div className="mc-toolbar">
         <div className="mc-search-wrap">
           <FaSearch className="mc-search-icon" />
@@ -225,6 +293,7 @@ export default function ManageCompanies() {
           </span>
         )}
       </div>
+
       <div className="mc-table-wrap">
         <table className="mc-table">
           <thead>
@@ -238,7 +307,9 @@ export default function ManageCompanies() {
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ textAlign: "center", color: "#bbb", padding: 40 }}>No companies found</td>
+                <td colSpan={4} style={{ textAlign: "center", color: "#bbb", padding: 40 }}>
+                  No companies found
+                </td>
               </tr>
             )}
             {filtered.map((c) => {
@@ -263,22 +334,28 @@ export default function ManageCompanies() {
                   <td>
                     <div className="mc-actions">
                       {c.status === "approved" && (
-                        <button className="mc-btn-text mc-text-danger"
-                          onClick={(e) => { e.stopPropagation(); handleReject(c.userId); }}
-                          disabled={isProcessing}>
+                        <button
+                          className="mc-btn-text mc-text-danger"
+                          onClick={(e) => { e.stopPropagation(); setRejectUserId(c.userId); }}
+                          disabled={isProcessing}
+                        >
                           Revoke
                         </button>
                       )}
                       {c.status === "pending" && (
                         <>
-                          <button className="mc-btn-outline mc-outline-success"
+                          <button
+                            className="mc-btn-outline mc-outline-success"
                             onClick={(e) => { e.stopPropagation(); handleApprove(c.userId); }}
-                            disabled={isProcessing}>
+                            disabled={isProcessing}
+                          >
                             {isProcessing ? <FaSpinner className="spinner" /> : <FaCheck />} Approve
                           </button>
-                          <button className="mc-btn-outline mc-outline-danger"
-                            onClick={(e) => { e.stopPropagation(); handleReject(c.userId); }}
-                            disabled={isProcessing}>
+                          <button
+                            className="mc-btn-outline mc-outline-danger"
+                            onClick={(e) => { e.stopPropagation(); setRejectUserId(c.userId); }}
+                            disabled={isProcessing}
+                          >
                             <FaTimes /> Reject
                           </button>
                         </>
@@ -291,15 +368,23 @@ export default function ManageCompanies() {
           </tbody>
         </table>
       </div>
+
       {selected && (
         <CompanyModal
           company={selected}
           onClose={() => setSelected(null)}
           onApprove={handleApprove}
-          onReject={handleReject}
+          onRejectClick={(userId) => { setSelected(null); setRejectUserId(userId); }}
           isProcessing={isProcessing}
         />
       )}
+
+      <RejectModal
+        isOpen={!!rejectUserId}
+        onClose={() => setRejectUserId(null)}
+        onConfirm={(reason) => { if (rejectUserId) handleReject(rejectUserId, reason); }}
+        isProcessing={isProcessing}
+      />
     </div>
   );
 }
