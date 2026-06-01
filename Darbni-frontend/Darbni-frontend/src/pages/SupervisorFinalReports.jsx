@@ -3,6 +3,17 @@ import { FaFileAlt, FaCheckCircle, FaChevronRight, FaStar, FaTimesCircle, FaRegC
 import { applicationApi, getToken } from "../api/client";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const handleDecision = async (decision) => {
+  if (!report.reportId) {
+    alert("No report found for this student");
+    return;
+  }
+  if (decision === "failed" && !decisionNotes.trim()) {
+    alert("Please enter notes when marking as failed");
+    return;
+  }
+  // باقي الكود...
+};
 
 // ========== جلب السجلات ==========
 const fetchLogsForApplication = async (applicationId) => {
