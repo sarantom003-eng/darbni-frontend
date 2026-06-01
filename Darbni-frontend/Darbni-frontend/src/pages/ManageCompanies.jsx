@@ -1,101 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FaSearch, FaBuilding, FaCheck, FaTimes, FaEnvelope,
   FaPhone, FaGlobe, FaMapMarkerAlt, FaCalendarAlt, FaUserTie,
-  FaIdBadge, FaBriefcase, FaClock
+  FaIdBadge, FaBriefcase, FaClock, FaSpinner, FaExclamationTriangle
 } from "react-icons/fa";
-
-const INITIAL_COMPANIES = [
-  {
-    id: 1,
-    name: "TechPal Solutions",
-    email: "hr@techpal.ps",
-    city: "Ramallah",
-    registered: "1/15/2025",
-    status: "Approved",
-    activeInternships: 3,
-    field: "Software Development",
-    about: "A leading Palestinian software house specializing in web and mobile applications.",
-    phone: "+970 2 295 1111",
-    website: "https://techpal.ps",
-    address: "Al-Masyoun, Ramallah",
-    contactPerson: "Layla Saeed",
-    role: "HR Manager",
-  },
-  {
-    id: 2,
-    name: "DataVision Co.",
-    email: "info@datavision.ps",
-    city: "Nablus",
-    registered: "2/20/2025",
-    status: "Approved",
-    activeInternships: 2,
-    field: "Data Analytics",
-    about: "Empowering businesses through data-driven insights and AI solutions.",
-    phone: "+970 9 234 5678",
-    website: "https://datavision.ps",
-    address: "Rafidia, Nablus",
-    contactPerson: "Ahmad Jaber",
-    role: "Operations Director",
-  },
-  {
-    id: 3,
-    name: "CloudNine Tech",
-    email: "careers@cloudnine.com",
-    city: "Tulkarm",
-    registered: "3/10/2025",
-    status: "Pending",
-    activeInternships: 0,
-    field: "Cloud Infrastructure",
-    about: "Providing secure and scalable cloud hosting and infrastructure management.",
-    phone: "+970 9 267 8901",
-    website: "https://cloudnine.com",
-    address: "Main Street, Tulkarm",
-    contactPerson: "Sami Naser",
-    role: "CEO",
-  },
-  {
-    id: 4,
-    name: "CyberGuard Inc.",
-    email: "admin@cyberguard.ps",
-    city: "Bethlehem",
-    registered: "3/25/2025",
-    status: "Pending",
-    activeInternships: 0,
-    field: "Cybersecurity",
-    about: "Protecting digital assets with state-of-the-art security protocols.",
-    phone: "+970 2 274 1234",
-    website: "https://cyberguard.ps",
-    address: "Manger Square, Bethlehem",
-    contactPerson: "Rami Khalil",
-    role: "Security Chief",
-  },
-  {
-    id: 5,
-    name: "Fake Corp",
-    email: "test@fake.com",
-    city: "Unknown",
-    registered: "4/1/2025",
-    status: "Rejected",
-    activeInternships: 0,
-    field: "Unknown",
-    about: "No description provided.",
-    phone: "N/A",
-    website: "N/A",
-    address: "Unknown",
-    contactPerson: "Unknown",
-    role: "Unknown",
-  },
-];
+import { api } from "../api/client";
 
 const statusColor = (status) => {
-  if (status === "Approved") return { bg: "#d1fae5", color: "#059669", border: "1px solid #a7f3d0" };
-  if (status === "Pending")  return { bg: "#fef3c7", color: "#d97706", border: "1px solid #fde68a" };
-  if (status === "Rejected") return { bg: "#fee2e2", color: "#dc2626", border: "1px solid #fecaca" };
+  if (status === "approved") return { bg: "#d1fae5", color: "#059669", border: "1px solid #a7f3d0" };
+  if (status === "pending")  return { bg: "#fef3c7", color: "#d97706", border: "1px solid #fde68a" };
+  if (status === "rejected") return { bg: "#fee2e2", color: "#dc2626", border: "1px solid #fecaca" };
   return { bg: "#f5f4f1", color: "#888", border: "1px solid #e8e6ef" };
 };
 
-function CompanyModal({ company, onClose, onUpdateStatus }) {
+const statusLabel = (status) => {
+  if (status === "approved") return "Approved";
+  if (status === "pending")  return "Pending";
+  if (status === "rejected") return "Rejected";
+  return status;
+};
+
+function CompanyModal({ company, onClose, onApprove, onReject, isProcessing }) {
   if (!company) return null;
   const sc = statusColor(company.status);
 
@@ -107,78 +32,72 @@ function CompanyModal({ company, onClose, onUpdateStatus }) {
         <h3 className="mc-modal-title">Company Profile</h3>
         <p className="mc-modal-sub">Full details from the company record.</p>
 
-        {/* Header */}
         <div className="mc-modal-head">
           <div className="mc-modal-avatar"><FaBuilding /></div>
           <div>
             <div className="mc-modal-name">{company.name}</div>
             <div className="mc-modal-badges">
               <span className="mc-badge" style={{ background: sc.bg, color: sc.color, border: sc.border || "none" }}>
-                {company.status}
+                {statusLabel(company.status)}
               </span>
-              <span className="mc-badge-outline">{company.field}</span>
+              <span className="mc-badge-outline">{company.industry || "N/A"}</span>
             </div>
           </div>
         </div>
 
-        {/* About */}
-        <div className="mc-modal-about">
-          {company.about}
-        </div>
+        <div className="mc-modal-about">{company.about || "—"}</div>
 
-        {/* Info Grid */}
         <div className="mc-modal-grid">
           <div className="mc-modal-field">
             <div className="mc-modal-field-label"><FaEnvelope /> Email</div>
-            <div className="mc-modal-field-val">{company.email}</div>
+            <div className="mc-modal-field-val">{company.email || "N/A"}</div>
           </div>
           <div className="mc-modal-field">
             <div className="mc-modal-field-label"><FaPhone /> Phone</div>
-            <div className="mc-modal-field-val">{company.phone}</div>
+            <div className="mc-modal-field-val">{company.phone || "N/A"}</div>
           </div>
           <div className="mc-modal-field">
             <div className="mc-modal-field-label"><FaGlobe /> Website</div>
-            <div className="mc-modal-field-val">{company.website}</div>
+            <div className="mc-modal-field-val">{company.website || "N/A"}</div>
           </div>
           <div className="mc-modal-field">
             <div className="mc-modal-field-label"><FaMapMarkerAlt /> City</div>
-            <div className="mc-modal-field-val">{company.city}</div>
+            <div className="mc-modal-field-val">{company.city || "N/A"}</div>
           </div>
           <div className="mc-modal-field">
             <div className="mc-modal-field-label"><FaMapMarkerAlt /> Address</div>
-            <div className="mc-modal-field-val">{company.address}</div>
+            <div className="mc-modal-field-val">{company.location || "N/A"}</div>
+          </div>
+          <div className="mc-modal-field">
+            <div className="mc-modal-field-label"><FaUserTie /> Trainer Name</div>
+            <div className="mc-modal-field-val">
+              {company.trainer?.firstName
+                ? `${company.trainer.firstName} ${company.trainer.lastName || ""}`.trim()
+                : "N/A"}
+            </div>
+          </div>
+          <div className="mc-modal-field">
+            <div className="mc-modal-field-label"><FaIdBadge /> Trainer Job Title</div>
+            <div className="mc-modal-field-val">{company.trainer?.jobTitle || "N/A"}</div>
           </div>
           <div className="mc-modal-field">
             <div className="mc-modal-field-label"><FaCalendarAlt /> Registered</div>
-            <div className="mc-modal-field-val">{company.registered}</div>
-          </div>
-          <div className="mc-modal-field">
-            <div className="mc-modal-field-label"><FaUserTie /> Contact Person</div>
-            <div className="mc-modal-field-val">{company.contactPerson}</div>
-          </div>
-          <div className="mc-modal-field">
-            <div className="mc-modal-field-label"><FaIdBadge /> Role</div>
-            <div className="mc-modal-field-val">{company.role}</div>
-          </div>
-          <div className="mc-modal-field mc-modal-field-full">
-            <div className="mc-modal-field-label"><FaBriefcase /> Active Internships</div>
-            <div className="mc-modal-field-val">{company.activeInternships}</div>
+            <div className="mc-modal-field-val">{company.createdAt ? new Date(company.createdAt).toLocaleDateString() : "N/A"}</div>
           </div>
         </div>
 
-        {/* Footer Action */}
         <div className="mc-modal-footer">
-          {company.status === "Approved" && (
-            <button className="mc-btn-revoke" onClick={() => { onUpdateStatus(company.id, "Rejected"); onClose(); }}>
-              Revoke Approval
+          {company.status === "approved" && (
+            <button className="mc-btn-revoke" onClick={() => { onReject(company.userId); onClose(); }} disabled={isProcessing}>
+              {isProcessing ? <FaSpinner className="spinner" /> : null} Revoke Approval
             </button>
           )}
-          {company.status === "Pending" && (
+          {company.status === "pending" && (
             <>
-              <button className="mc-btn-reject" onClick={() => { onUpdateStatus(company.id, "Rejected"); onClose(); }}>
+              <button className="mc-btn-reject" onClick={() => { onReject(company.userId); onClose(); }} disabled={isProcessing}>
                 <FaTimes /> Reject
               </button>
-              <button className="mc-btn-approve" onClick={() => { onUpdateStatus(company.id, "Approved"); onClose(); }}>
+              <button className="mc-btn-approve" onClick={() => { onApprove(company.userId); onClose(); }} disabled={isProcessing}>
                 <FaCheck /> Approve
               </button>
             </>
@@ -190,32 +109,120 @@ function CompanyModal({ company, onClose, onUpdateStatus }) {
 }
 
 export default function ManageCompanies() {
-  const [search, setSearch]     = useState("");
+  const [companies, setCompanies] = useState([]);
+  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
-  const [companies, setCompanies] = useState(INITIAL_COMPANIES);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const filtered = companies.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.city.toLowerCase().includes(search.toLowerCase()) ||
-    c.status.toLowerCase().includes(search.toLowerCase())
+  const fetchCompanies = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      // ✅ جلب الشركات المنتظرة والموافق عليها معاً
+      const [pendingRes, approvedRes] = await Promise.allSettled([
+        api("/supervisor/companies/pending"),
+        api("/supervisor/companies"),
+      ]);
+
+      const pending = pendingRes.status === "fulfilled"
+        ? (pendingRes.value.companies || []).map(c => mapCompany(c, "pending"))
+        : [];
+
+      const approved = approvedRes.status === "fulfilled"
+        ? (approvedRes.value.companies || []).map(c => mapCompany(c, "approved"))
+        : [];
+
+      // ✅ دمج القائمتين بدون تكرار
+      const allIds = new Set(pending.map(c => c.userId));
+      const merged = [
+        ...pending,
+        ...approved.filter(c => !allIds.has(c.userId)),
+      ];
+
+      setCompanies(merged);
+    } catch (err) {
+      setError(err.message || "Failed to load companies");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const mapCompany = (c, defaultStatus) => ({
+    userId: c.user?._id || "",
+    name: c.profile?.name || "N/A",
+    email: c.user?.email || "N/A",
+    industry: c.profile?.industry || "N/A",
+    city: c.profile?.city || "N/A",
+    phone: c.profile?.phone || "N/A",
+    website: c.profile?.website || "N/A",
+    about: c.profile?.about || "",
+    location: c.profile?.location || "N/A",
+    trainer: c.profile?.trainer || {},
+    createdAt: c.profile?.createdAt || "",
+    status: c.user?.verificationStatus || defaultStatus,
+  });
+
+  useEffect(() => { fetchCompanies(); }, []);
+
+  const handleApprove = async (userId) => {
+    setIsProcessing(true);
+    try {
+      await api(`/supervisor/companies/${userId}/approve`, { method: "PATCH" });
+      await fetchCompanies();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReject = async (userId) => {
+    setIsProcessing(true);
+    try {
+      await api(`/supervisor/companies/${userId}/reject`, { method: "PATCH" });
+      await fetchCompanies();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const filtered = companies.filter(c => {
+    const q = search.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(q) ||
+      c.city.toLowerCase().includes(q) ||
+      c.status.toLowerCase().includes(q)
+    );
+  });
+
+  const pendingCount = companies.filter(c => c.status === "pending").length;
+
+  if (loading) return (
+    <div className="mc-page" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
+      <FaSpinner className="spinner" />
+    </div>
   );
 
-  const pendingCount = companies.filter(c => c.status === "Pending").length;
-
-  const updateStatus = (id, newStatus) => {
-    setCompanies(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
-  };
+  if (error) return (
+    <div className="mc-page">
+      <div className="mc-error">
+        <FaExclamationTriangle /><p>{error}</p>
+        <button onClick={fetchCompanies}>Try Again</button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="mc-page">
-
-      {/* Header */}
       <div className="mc-header">
         <h1 className="mc-title">Manage Companies</h1>
         <p className="mc-sub">Approve or reject company registrations</p>
       </div>
 
-      {/* Toolbar */}
       <div className="mc-toolbar">
         <div className="mc-search-wrap">
           <FaSearch className="mc-search-icon" />
@@ -233,23 +240,20 @@ export default function ManageCompanies() {
         )}
       </div>
 
-      {/* Table */}
       <div className="mc-table-wrap">
         <table className="mc-table">
           <thead>
             <tr>
               <th>Company</th>
               <th>City</th>
-              <th>Registered</th>
               <th>Status</th>
-              <th>Active Internships</th>
               <th style={{ textAlign: "right" }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ textAlign: "center", color: "#bbb", padding: 40 }}>
+                <td colSpan={4} style={{ textAlign: "center", color: "#bbb", padding: 40 }}>
                   No companies found
                 </td>
               </tr>
@@ -257,7 +261,7 @@ export default function ManageCompanies() {
             {filtered.map((c) => {
               const sc = statusColor(c.status);
               return (
-                <tr key={c.id} className="mc-row" onClick={() => setSelected(c)} style={{ cursor: "pointer" }}>
+                <tr key={c.userId} className="mc-row" onClick={() => setSelected(c)} style={{ cursor: "pointer" }}>
                   <td>
                     <div className="mc-company-cell">
                       <div className="mc-company-icon"><FaBuilding /></div>
@@ -268,34 +272,35 @@ export default function ManageCompanies() {
                     </div>
                   </td>
                   <td>{c.city}</td>
-                  <td>{c.registered}</td>
                   <td>
                     <span className="mc-badge" style={{ background: sc.bg, color: sc.color, border: sc.border || "none" }}>
-                      {c.status}
+                      {statusLabel(c.status)}
                     </span>
                   </td>
-                  <td>{c.activeInternships}</td>
                   <td>
                     <div className="mc-actions">
-                      {c.status === "Approved" && (
-                        <button 
+                      {c.status === "approved" && (
+                        <button
                           className="mc-btn-text mc-text-danger"
-                          onClick={(e) => { e.stopPropagation(); updateStatus(c.id, "Rejected"); }}
+                          onClick={(e) => { e.stopPropagation(); handleReject(c.userId); }}
+                          disabled={isProcessing}
                         >
                           Revoke
                         </button>
                       )}
-                      {c.status === "Pending" && (
+                      {c.status === "pending" && (
                         <>
-                          <button 
+                          <button
                             className="mc-btn-outline mc-outline-success"
-                            onClick={(e) => { e.stopPropagation(); updateStatus(c.id, "Approved"); }}
+                            onClick={(e) => { e.stopPropagation(); handleApprove(c.userId); }}
+                            disabled={isProcessing}
                           >
                             <FaCheck /> Approve
                           </button>
-                          <button 
+                          <button
                             className="mc-btn-outline mc-outline-danger"
-                            onClick={(e) => { e.stopPropagation(); updateStatus(c.id, "Rejected"); }}
+                            onClick={(e) => { e.stopPropagation(); handleReject(c.userId); }}
+                            disabled={isProcessing}
                           >
                             <FaTimes /> Reject
                           </button>
@@ -311,10 +316,12 @@ export default function ManageCompanies() {
       </div>
 
       {selected && (
-        <CompanyModal 
-          company={selected} 
-          onClose={() => setSelected(null)} 
-          onUpdateStatus={updateStatus}
+        <CompanyModal
+          company={selected}
+          onClose={() => setSelected(null)}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          isProcessing={isProcessing}
         />
       )}
     </div>
