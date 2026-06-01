@@ -4,9 +4,8 @@ import {
   FaPaperPlane, FaExclamationTriangle, FaBuilding,
   FaSpinner, FaBan
 } from "react-icons/fa";
-import { applicationApi, notificationApi } from "../api/client";
+import { applicationApi } from "../api/client";
 
-// ================ Modal لسبب الرفض ================
 function RejectModal({ isOpen, onClose, onConfirm, isProcessing }) {
   const [reason, setReason] = useState("");
 
@@ -27,14 +26,11 @@ function RejectModal({ isOpen, onClose, onConfirm, isProcessing }) {
         <button className="ra-modal-close" onClick={onClose} disabled={isProcessing}>
           <FaTimes />
         </button>
-
         <div className="ra-modal-icon ra-modal-icon-danger">
           <FaBan />
         </div>
-
         <h3 className="ra-modal-title">Reject Application</h3>
         <p className="ra-modal-subtitle">Please provide a reason for rejecting this application</p>
-
         <div className="ra-form-group">
           <label>Rejection Reason</label>
           <textarea
@@ -46,7 +42,6 @@ function RejectModal({ isOpen, onClose, onConfirm, isProcessing }) {
             disabled={isProcessing}
           />
         </div>
-
         <div className="ra-modal-footer">
           <button className="ra-btn-close" onClick={onClose} disabled={isProcessing}>
             Cancel
@@ -61,40 +56,31 @@ function RejectModal({ isOpen, onClose, onConfirm, isProcessing }) {
   );
 }
 
-// ================ Modal تفاصيل الطلب ================
 function ApplicationModal({ app, onClose }) {
   if (!app) return null;
-  
+
   const firstName = app.studentId?.firstName || "";
   const lastName = app.studentId?.lastName || "";
   const studentFullName = `${firstName} ${lastName}`.trim();
-  const initials = studentFullName
-    .split(" ")
-    .map(w => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  
+  const initials = studentFullName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+
   const getTimeRemaining = (deadline) => {
     if (!deadline) return "No deadline set";
     const remaining = new Date(deadline) - new Date();
     if (remaining <= 0) return "Expired";
     const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((remaining % (86400000)) / (1000 * 60 * 60));
+    const hours = Math.floor((remaining % 86400000) / (1000 * 60 * 60));
     if (days > 0) return `${days}d ${hours}h remaining`;
     return `${hours}h remaining`;
   };
-  
+
   const timeRemaining = getTimeRemaining(app.studentDeadline);
   const isUrgent = app.studentDeadline && (new Date(app.studentDeadline) - new Date()) < 86400000;
 
   return (
     <div className="ra-overlay" onClick={onClose}>
       <div className="ra-modal" onClick={e => e.stopPropagation()}>
-        <button className="ra-modal-close" onClick={onClose}>
-          <FaTimes />
-        </button>
-
+        <button className="ra-modal-close" onClick={onClose}><FaTimes /></button>
         <h3 className="ra-modal-title">Application Details</h3>
 
         <div className="ra-modal-head">
@@ -129,9 +115,7 @@ function ApplicationModal({ app, onClose }) {
           </div>
         </div>
 
-        <div className="ra-modal-section-title">
-          <FaGraduationCap /> Submitted Training Request
-        </div>
+        <div className="ra-modal-section-title"><FaGraduationCap /> Submitted Training Request</div>
         <div className="ra-modal-grid">
           <div className="ra-grid-item">
             <label>Semester</label>
@@ -189,7 +173,6 @@ function ApplicationModal({ app, onClose }) {
 
         <div className="ra-modal-workflow">
           <div className="ra-workflow-title">Application Workflow</div>
-          
           <div className="ra-workflow-step">
             <div className="ra-step-icon ra-step-success"><FaBuilding /></div>
             <div className="ra-step-text">Company Approval</div>
@@ -198,30 +181,26 @@ function ApplicationModal({ app, onClose }) {
             </div>
           </div>
           <div className="ra-workflow-line"></div>
-          
           <div className="ra-workflow-step">
             <div className={`ra-step-icon ${app.status === "pending_university" ? "ra-step-pending" : "ra-step-success"}`}>
               <FaGraduationCap />
             </div>
             <div className="ra-step-text">University Review</div>
             <div className={`ra-step-badge ${app.status === "pending_university" ? "ra-badge-pending" : "ra-badge-success"}`}>
-              {app.status === "pending_university" ? <FaClock /> : <FaCheck />} 
+              {app.status === "pending_university" ? <FaClock /> : <FaCheck />}
               {app.status === "pending_university" ? "Pending" : "Approved"}
             </div>
           </div>
         </div>
 
         <div className="ra-modal-footer">
-          <button className="ra-btn-close" onClick={onClose}>
-            Close
-          </button>
+          <button className="ra-btn-close" onClick={onClose}>Close</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ================ Main Component ================
 export default function ReviewApplications() {
   const [filter, setFilter] = useState("pending_university");
   const [applications, setApplications] = useState([]);
@@ -230,7 +209,6 @@ export default function ReviewApplications() {
   const [selectedApp, setSelectedApp] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [rejectAppId, setRejectAppId] = useState(null);
-  const [rejectReason, setRejectReason] = useState("");
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -239,31 +217,23 @@ export default function ReviewApplications() {
       const response = await applicationApi.university();
       setApplications(response.applications || []);
     } catch (err) {
-      console.error("Error fetching applications:", err);
       setError(err.message || "Failed to load applications");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchApplications();
-  }, []);
+  useEffect(() => { fetchApplications(); }, []);
 
-  const getCountByStatus = (status) => {
-    return applications.filter(app => app.status === status).length;
-  };
-
+  const getCountByStatus = (status) => applications.filter(app => app.status === status).length;
   const filteredApps = applications.filter(app => app.status === filter);
 
   const handleApprove = async (applicationId) => {
     setIsProcessing(true);
     try {
-      await applicationApi.universityResponse(applicationId, "approve", { action: "approve" });
+      await applicationApi.universityResponse(applicationId, "approve");
       await fetchApplications();
-      await notificationApi.markAllRead();
     } catch (err) {
-      console.error("Error approving application:", err);
       alert(`Error: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -273,12 +243,10 @@ export default function ReviewApplications() {
   const handleReject = async (applicationId, reason) => {
     setIsProcessing(true);
     try {
-      await applicationApi.universityResponse(applicationId, "reject", { action: "reject", rejectionReason: reason });
+      await applicationApi.universityResponse(applicationId, "reject", { rejectionReason: reason });
       await fetchApplications();
       setRejectAppId(null);
-      setRejectReason("");
     } catch (err) {
-      console.error("Error rejecting application:", err);
       alert(`Error: ${err.message}`);
     } finally {
       setIsProcessing(false);
@@ -289,31 +257,23 @@ export default function ReviewApplications() {
     { key: "pending_university", label: "Pending", icon: FaClock },
     { key: "university_approved", label: "Sent to Company", icon: FaPaperPlane },
     { key: "university_rejected", label: "Rejected", icon: FaTimes },
-    { key: "auto_cancelled", label: "Cancelled", icon: FaExclamationTriangle }
+    { key: "auto_cancelled", label: "Cancelled", icon: FaExclamationTriangle },
   ];
 
-  if (loading) {
-    return (
-      <div className="ra-page">
-        <div className="ra-loading">
-          <FaSpinner className="spinner" />
-          <p>Loading applications...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="ra-page">
+      <div className="ra-loading"><FaSpinner className="spinner" /><p>Loading applications...</p></div>
+    </div>
+  );
 
-  if (error) {
-    return (
-      <div className="ra-page">
-        <div className="ra-error">
-          <FaExclamationTriangle />
-          <p>{error}</p>
-          <button onClick={fetchApplications}>Try Again</button>
-        </div>
+  if (error) return (
+    <div className="ra-page">
+      <div className="ra-error">
+        <FaExclamationTriangle /><p>{error}</p>
+        <button onClick={fetchApplications}>Try Again</button>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className="ra-page">
@@ -345,33 +305,23 @@ export default function ReviewApplications() {
           const firstName = app.studentId?.firstName || "";
           const lastName = app.studentId?.lastName || "";
           const studentFullName = `${firstName} ${lastName}`.trim();
-          const initials = studentFullName
-            .split(" ")
-            .map(w => w[0])
-            .join("")
-            .slice(0, 2)
-            .toUpperCase();
-          
+          const initials = studentFullName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+
           const getTimeRemaining = (deadline) => {
             if (!deadline) return null;
             const remaining = new Date(deadline) - new Date();
             if (remaining <= 0) return "Expired";
             const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((remaining % (86400000)) / (1000 * 60 * 60));
+            const hours = Math.floor((remaining % 86400000) / (1000 * 60 * 60));
             if (days > 0) return `${days}d ${hours}h remaining`;
             return `${hours}h remaining`;
           };
-          
+
           const timeRemaining = getTimeRemaining(app.studentDeadline);
           const isUrgent = app.studentDeadline && (new Date(app.studentDeadline) - new Date()) < 86400000;
 
           return (
-            <div 
-              key={app._id} 
-              className="ra-card" 
-              onClick={() => setSelectedApp(app)} 
-              style={{ cursor: "pointer" }}
-            >
+            <div key={app._id} className="ra-card" onClick={() => setSelectedApp(app)} style={{ cursor: "pointer" }}>
               <div className="ra-card-left">
                 <div className="ra-card-avatar">{initials}</div>
                 <div className="ra-card-info">
@@ -382,7 +332,7 @@ export default function ReviewApplications() {
                     {app.companyId?.name || "N/A"} · {app.trainingId?.field || "N/A"}
                   </div>
                   <div className="ra-card-meta">
-                    Hours: <strong>{app.trainingId?.totalHours || "N/A"}h</strong> &nbsp; 
+                    Hours: <strong>{app.trainingId?.totalHours || "N/A"}h</strong> &nbsp;
                     Applied: {app.createdAt ? new Date(app.createdAt).toLocaleDateString() : "N/A"}
                   </div>
                 </div>
@@ -394,35 +344,27 @@ export default function ReviewApplications() {
                     <FaClock /> {timeRemaining}
                   </div>
                 )}
-
                 <div className="ra-card-actions">
                   {app.status === "pending_university" && (
                     <>
-                      <button 
-                        className="ra-btn-solid ra-solid-approve" 
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          handleApprove(app._id);
-                        }}
+                      <button
+                        className="ra-btn-solid ra-solid-approve"
+                        onClick={(e) => { e.stopPropagation(); handleApprove(app._id); }}
                         disabled={isProcessing}
                       >
-                        {isProcessing ? <FaSpinner className="spinner" /> : <FaCheck />}
-                        Approve
+                        {isProcessing ? <FaSpinner className="spinner" /> : <FaCheck />} Approve
                       </button>
-                      <button 
-                        className="ra-btn-solid ra-solid-reject" 
-                        onClick={(e) => { 
-                          e.stopPropagation();
-                          setRejectAppId(app._id);
-                        }}
+                      <button
+                        className="ra-btn-solid ra-solid-reject"
+                        onClick={(e) => { e.stopPropagation(); setRejectAppId(app._id); }}
                         disabled={isProcessing}
                       >
                         <FaTimes /> Reject
                       </button>
                     </>
                   )}
-                  <button 
-                    className="ra-btn-view" 
+                  <button
+                    className="ra-btn-view"
                     onClick={(e) => { e.stopPropagation(); setSelectedApp(app); }}
                   >
                     <FaEye /> View Details
@@ -434,24 +376,14 @@ export default function ReviewApplications() {
         })}
       </div>
 
-      {/* Modal for View Details */}
       {selectedApp && (
-        <ApplicationModal
-          app={selectedApp}
-          onClose={() => setSelectedApp(null)}
-        />
+        <ApplicationModal app={selectedApp} onClose={() => setSelectedApp(null)} />
       )}
 
-      {/* Modal for Rejection Reason */}
       <RejectModal
         isOpen={!!rejectAppId}
-        onClose={() => {
-          setRejectAppId(null);
-          setRejectReason("");
-        }}
-        onConfirm={(reason) => {
-          if (rejectAppId) handleReject(rejectAppId, reason);
-        }}
+        onClose={() => setRejectAppId(null)}
+        onConfirm={(reason) => { if (rejectAppId) handleReject(rejectAppId, reason); }}
         isProcessing={isProcessing}
       />
     </div>
