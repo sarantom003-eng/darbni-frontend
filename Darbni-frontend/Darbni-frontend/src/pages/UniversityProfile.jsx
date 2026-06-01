@@ -1,22 +1,23 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import {
   FaUserTie, FaUniversity, FaPencilAlt, FaCheck, FaTimes,
   FaCamera, FaEnvelope, FaPhone, FaGlobe, FaMapMarkerAlt
 } from "react-icons/fa";
-import { profileApi, api } from "../api"; // عدّل المسار حسب مشروعك
 
-// ── دوال مساعدة ──────────────────────────────────────────────────────────────
+const DEFAULT_SUPERVISOR = {
+  fullName:   "Dr. Mariam Al-Khatib",
+  title:      "Training Coordinator",
+  email:      "m.alkhatib@university.edu",
+  phone:      "+962 79 123 4567",
+  department: "Computer Science",
+};
 
-// الـ API بيرجع firstName + lastName منفصلين — بنجمعهم للعرض
-function splitFullName(fullName = "") {
-  const parts = fullName.trim().split(" ");
-  return {
-    firstName: parts[0] || "",
-    lastName:  parts.slice(1).join(" ") || "",
-  };
-}
-
-// ── Sub-components (نفسها بالضبط ما غيرنا شي) ───────────────────────────────
+const DEFAULT_UNIVERSITY = {
+  name:    "Jordan University of Science & Technology",
+  address: "Irbid, Jordan",
+  website: "https://just.edu.jo",
+  about:   "Overseeing student internship programs and ensuring quality training experiences across partner companies.",
+};
 
 function ReadField({ label, value, icon }) {
   return (
@@ -68,76 +69,20 @@ function EditTextarea({ label, value, onChange, rows = 4 }) {
   );
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
-
 export default function UniversityProfile() {
   const [editing, setEditing] = useState(false);
   const [toast,   setToast]   = useState(false);
   const [errors,  setErrors]  = useState({});
-  const [saving,  setSaving]  = useState(false);
 
-  // ── State — نفس هيكلك بالضبط ─────────────────────────────────────────────
-  // supervisor.fullName: بنجمع firstName + lastName من الـ API هون
-  const [supervisor, setSupervisor] = useState({
-    fullName:   "",
-    title:      "",
-    email:      "",
-    phone:      "",
-    department: "",
-  });
-  const [supDraft,   setSupDraft]   = useState(supervisor);
-  const [university, setUniversity] = useState({
-    name:    "",
-    address: "",
-    website: "",
-    about:   "",
-  });
-  const [uniDraft,    setUniDraft]    = useState(university);
+  const [supervisor,  setSupervisor]  = useState(DEFAULT_SUPERVISOR);
+  const [supDraft,    setSupDraft]    = useState(DEFAULT_SUPERVISOR);
+  const [university,  setUniversity]  = useState(DEFAULT_UNIVERSITY);
+  const [uniDraft,    setUniDraft]    = useState(DEFAULT_UNIVERSITY);
+
   const [avatar,      setAvatar]      = useState(null);
   const [avatarDraft, setAvatarDraft] = useState(null);
 
   const avatarRef = useRef();
-
-  // ── FETCH عند التحميل ────────────────────────────────────────────────────
-  // GET /profile/me  →  supervisor info
-  // GET /supervisor/settings  →  university info
-  useEffect(() => {
-    (async () => {
-      try {
-        // 1. بيانات المشرف
-        // response: { profile: { firstName, lastName, title, phone, department, avatar, universityId }, email, role }
-        const profileRes = await profileApi.me();
-        const p = profileRes.profile || {};
-        const sup = {
-          fullName:   `${p.firstName || ""} ${p.lastName || ""}`.trim(),
-          title:      p.title      || "",
-          email:      profileRes.email || "",
-          phone:      p.phone      || "",
-          department: p.department || "",
-        };
-        setSupervisor(sup);
-        setSupDraft(sup);
-        if (p.avatar) { setAvatar(p.avatar); setAvatarDraft(p.avatar); }
-
-        // 2. بيانات الجامعة
-        // response: { university: { name, address, website, about } }
-        const settingsRes = await api("/supervisor/settings");
-        const u = settingsRes.university || {};
-        const uni = {
-          name:    u.name    || "",
-          address: u.address || "",
-          website: u.website || "",
-          about:   u.about   || "",
-        };
-        setUniversity(uni);
-        setUniDraft(uni);
-      } catch (err) {
-        console.error("Profile load error:", err);
-      }
-    })();
-  }, []);
-
-  // ── Edit handlers (نفسها بالضبط) ─────────────────────────────────────────
 
   const startEdit = () => {
     setSupDraft({ ...supervisor });
@@ -158,79 +103,25 @@ export default function UniversityProfile() {
     return e;
   };
 
-  // ── SAVE — مربوطة بالـ API ───────────────────────────────────────────────
-  const save = async () => {
+  const save = () => {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
-
-    setSaving(true);
-    try {
-      // الـ API بيحتاج firstName + lastName منفصلين
-      const { firstName, lastName } = splitFullName(supDraft.fullName);
-
-      // 1. PUT /profile/me — بيانات المشرف
-      // response: { message, profile: { firstName, lastName, title, phone, department, avatar, ... } }
-      await profileApi.update({
-        firstName,
-        lastName,
-        title:      supDraft.title,
-        phone:      supDraft.phone,
-        department: supDraft.department,
-      });
-
-      // 2. PUT /supervisor/settings — بيانات الجامعة
-      // response: { message, university: { name, address, website, about } }
-      await api("/supervisor/settings", {
-        method: "PUT",
-        body: {
-          name:    uniDraft.name,
-          address: uniDraft.address,
-          website: uniDraft.website,
-          about:   uniDraft.about,
-        },
-      });
-
-      // نحدث الـ state من الـ draft بعد نجاح الـ API
-      setSupervisor({ ...supDraft });
-      setUniversity({ ...uniDraft });
-      setAvatar(avatarDraft);
-      setEditing(false);
-      setErrors({});
-      setToast(true);
-      setTimeout(() => setToast(false), 3000);
-    } catch (err) {
-      console.error("Save error:", err);
-      alert(err.message || "حدث خطأ أثناء الحفظ");
-    } finally {
-      setSaving(false);
-    }
+    setSupervisor({ ...supDraft });
+    setUniversity({ ...uniDraft });
+    setAvatar(avatarDraft);
+    setEditing(false);
+    setErrors({});
+    setToast(true);
+    setTimeout(() => setToast(false), 3000);
   };
 
-  // ── Avatar — رفع للـ API أولاً ──────────────────────────────────────────
-  const handleAvatarChange = async (e) => {
+  const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    try {
-      // POST /upload/avatar — form-data: key=avatar
-      // response: { message, avatarUrl: "https://darbni.onrender.com/uploads/avatars/..." }
-      const form = new FormData();
-      form.append("avatar", file);
-      const res = await api("/upload/avatar", { method: "POST", body: form });
-      const url = res.avatarUrl; // ← الـ URL الفعلي من السيرفر
-
-      if (editing) {
-        setAvatarDraft(url);
-      } else {
-        setAvatar(url);
-      }
-    } catch (err) {
-      console.error("Avatar upload error:", err);
-      alert(err.message || "فشل رفع الصورة");
-    }
+    const url = URL.createObjectURL(file);
+    editing ? setAvatarDraft(url) : setAvatar(url);
   };
 
-  // ── Display values (نفس المنطق بالضبط) ──────────────────────────────────
   const sup = editing ? supDraft   : supervisor;
   const uni = editing ? uniDraft   : university;
   const currentAvatar = editing ? avatarDraft : avatar;
@@ -241,13 +132,13 @@ export default function UniversityProfile() {
     .slice(0, 2)
     .toUpperCase();
 
-  // ── JSX (نفسه بالضبط ما غيرنا شي) ───────────────────────────────────────
   return (
     <>
       <input ref={avatarRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleAvatarChange} />
 
       <div className="cp-page">
 
+        {/* ── Page Header ── */}
         <div className="cp-page-header">
           <div>
             <div className="cp-page-title">University Profile</div>
@@ -259,16 +150,17 @@ export default function UniversityProfile() {
             </button>
           ) : (
             <div className="cp-btn-group">
-              <button className="cp-btn-cancel" onClick={cancelEdit} disabled={saving}>
+              <button className="cp-btn-cancel" onClick={cancelEdit}>
                 <FaTimes size={13} /> Cancel
               </button>
-              <button className="cp-btn-save" onClick={save} disabled={saving}>
-                <FaCheck size={13} /> {saving ? "Saving..." : "Save Changes"}
+              <button className="cp-btn-save" onClick={save}>
+                <FaCheck size={13} /> Save Changes
               </button>
             </div>
           )}
         </div>
 
+        {/* ── Banner + Avatar ── */}
         <div style={{ position: "relative" }}>
           <div className="cp-hero" />
           <div className="cp-logo-wrap" onClick={() => avatarRef.current?.click()}>
@@ -289,8 +181,10 @@ export default function UniversityProfile() {
           </div>
         </div>
 
+        {/* ── Info Cards ── */}
         <div className="cp-cards-row">
 
+          {/* Supervisor Information */}
           <div className="cp-card">
             <div className="cp-card-title"><FaUserTie size={14} /> Supervisor Information</div>
             {!editing ? (
@@ -320,6 +214,7 @@ export default function UniversityProfile() {
             )}
           </div>
 
+          {/* University Information */}
           <div className="cp-card">
             <div className="cp-card-title"><FaUniversity size={14} /> University Information</div>
             {!editing ? (
