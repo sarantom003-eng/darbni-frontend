@@ -7,7 +7,6 @@ import { applicationApi, getToken } from "../api/client";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-// ========== جلب السجلات ==========
 const fetchLogsForApplication = async (applicationId) => {
   try {
     const token = getToken();
@@ -22,10 +21,8 @@ const fetchLogsForApplication = async (applicationId) => {
   }
 };
 
-// ========== بناء الأسابيع من السجلات ==========
 const buildWeeksFromLogs = (logs) => {
   if (!logs || logs.length === 0) return [];
-
   const weeksMap = new Map();
   let weekCounter = 0;
 
@@ -48,7 +45,6 @@ const buildWeeksFromLogs = (logs) => {
   logs.forEach(log => {
     const date = new Date(log.log_date);
     const weekKey = `${date.getFullYear()}-W${getWeekNumber(date)}`;
-
     if (!weeksMap.has(weekKey)) {
       weekCounter++;
       weeksMap.set(weekKey, {
@@ -60,7 +56,6 @@ const buildWeeksFromLogs = (logs) => {
         entries: [],
       });
     }
-
     const week = weeksMap.get(weekKey);
     week.totalHours += log.hours;
     week.days++;
@@ -72,14 +67,12 @@ const buildWeeksFromLogs = (logs) => {
       status: log.status,
       feedback: log.company_feedback || "",
     });
-
     week.entries.sort((a, b) => new Date(a.date) - new Date(b.date));
   });
 
   return Array.from(weeksMap.values());
 };
 
-// ========== Modal ==========
 function InternModal({ intern, onClose }) {
   const [expandedWeek, setExpandedWeek] = useState(intern.weeks?.[0]?.id || null);
   const progress = intern.targetHours > 0 ? Math.round((intern.hoursDone / intern.targetHours) * 100) : 0;
@@ -88,7 +81,6 @@ function InternModal({ intern, onClose }) {
     <div className="sip-overlay" onClick={onClose}>
       <div className="sip-modal" onClick={(e) => e.stopPropagation()}>
         <button className="sip-modal-close" onClick={onClose}>✕</button>
-
         <div className="sip-modal-header">
           <div className="sip-avatar-large" style={{ background: intern.color, color: intern.textColor }}>
             {intern.initials}
@@ -98,21 +90,17 @@ function InternModal({ intern, onClose }) {
             <p className="sip-modal-dept">{intern.company} - {intern.department}</p>
           </div>
         </div>
-
         <div className="sip-modal-stats">
           <div className="sip-mstat"><span className="sip-mstat-num">{intern.hoursDone}</span><span className="sip-mstat-lbl">Hours Done</span></div>
           <div className="sip-mstat"><span className="sip-mstat-num">{intern.targetHours}</span><span className="sip-mstat-lbl">Target</span></div>
           <div className="sip-mstat"><span className="sip-mstat-num">{progress}%</span><span className="sip-mstat-lbl">Progress</span></div>
         </div>
-
         <div className="sip-modal-bar-wrap">
           <div className="sip-modal-bar-bg">
             <div className="sip-modal-bar-fill" style={{ width: `${progress}%` }} />
           </div>
         </div>
-
         <h4 className="sip-modal-log-title">Weekly Schedule Log</h4>
-
         <div className="sip-weeks">
           {intern.weeks.length === 0 && <div className="sip-no-weeks">No logs submitted yet.</div>}
           {intern.weeks.map(week => {
@@ -129,7 +117,6 @@ function InternModal({ intern, onClose }) {
                     <span className="sip-week-hours">{week.totalHours}h - {week.days} days</span>
                   </div>
                 </div>
-
                 {isOpen && (
                   <div className="sip-week-body">
                     <table className="sip-table">
@@ -168,7 +155,6 @@ function InternModal({ intern, onClose }) {
             );
           })}
         </div>
-
         <div className="sip-modal-footer">
           <button className="sip-btn-close" onClick={onClose}>Close</button>
         </div>
@@ -177,7 +163,6 @@ function InternModal({ intern, onClose }) {
   );
 }
 
-// ========== الصفحة الرئيسية ==========
 export default function SupervisorInternProgress() {
   const [trainees, setTrainees] = useState([]);
   const [selectedTrainee, setSelectedTrainee] = useState(null);
@@ -191,11 +176,11 @@ export default function SupervisorInternProgress() {
       const response = await applicationApi.university();
       const allApplications = response.applications || [];
 
-      // ✅ الصح — بس in progressوcompleted
-const applications = allApplications.filter(app =>
-  app.status === "in progress" ||
-  app.status === "completed"
-);
+      // ✅ الصح — in_training وcompleted فقط
+      const applications = allApplications.filter(app =>
+        app.status === "in_training" ||
+        app.status === "completed"
+      );
 
       const mapped = await Promise.all(applications.map(async (app) => {
         const student = app.studentId || {};
@@ -272,7 +257,6 @@ const applications = allApplications.filter(app =>
         <h1 className="sip-page-title">Intern Progress</h1>
         <p className="sip-page-sub">Track hours, daily progress, and provide feedback</p>
       </div>
-
       <div className="sip-top-stats">
         <div className="sip-tstat-card">
           <div className="sip-tstat-icon sip-icon-purple"><FaUserFriends /></div>
@@ -287,7 +271,6 @@ const applications = allApplications.filter(app =>
           <div className="sip-tstat-info"><span className="sip-tstat-val">{completedCount}</span><span className="sip-tstat-lbl">Completed</span></div>
         </div>
       </div>
-
       <div className="sip-list">
         {trainees.length === 0 && <div className="sip-empty">No interns found.</div>}
         {trainees.map(t => (
@@ -314,7 +297,6 @@ const applications = allApplications.filter(app =>
           </div>
         ))}
       </div>
-
       {selectedTrainee && (
         <InternModal intern={selectedTrainee} onClose={() => setSelectedTrainee(null)} />
       )}

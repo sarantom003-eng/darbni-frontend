@@ -151,7 +151,6 @@ export default function ManageCompanies() {
 
   useEffect(() => { fetchCompanies(); }, []);
 
-  // ✅ approve بدون body
   const handleApprove = async (userId) => {
     setIsProcessing(true);
     try {
@@ -164,21 +163,21 @@ export default function ManageCompanies() {
     }
   };
 
-  // ✅ عدلي handleReject هيك
-const handleReject = async (userId) => {
-  setIsProcessing(true);
-  try {
-    await api(`/supervisor/companies/${userId}/reject`, {
-      method: "PATCH",
-      body: { rejectionReason: "Approval revoked by supervisor" },
-    });
-    await fetchCompanies();
-  } catch (err) {
-    alert(`Error: ${err.message}`);
-  } finally {
-    setIsProcessing(false);
-  }
-};
+  // ✅ بتبعت rejectionReason لأن الـ API بيطلبه حتى للـ Revoke
+  const handleReject = async (userId) => {
+    setIsProcessing(true);
+    try {
+      await api(`/supervisor/companies/${userId}/reject`, {
+        method: "PATCH",
+        body: { rejectionReason: "Approval revoked by supervisor" },
+      });
+      await fetchCompanies();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const filtered = companies.filter(c => {
     const q = search.toLowerCase();

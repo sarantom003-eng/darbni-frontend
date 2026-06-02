@@ -1,21 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { FaFileAlt, FaCheckCircle, FaChevronRight, FaStar, FaTimesCircle, FaRegClock, FaSpinner, FaExclamationTriangle } from "react-icons/fa";
+import {
+  FaFileAlt, FaCheckCircle, FaChevronRight, FaStar,
+  FaTimesCircle, FaRegClock, FaSpinner, FaExclamationTriangle
+} from "react-icons/fa";
 import { applicationApi, getToken } from "../api/client";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-const handleDecision = async (decision) => {
-  if (!report.reportId) {
-    alert("No report found for this student");
-    return;
-  }
-  if (decision === "failed" && !decisionNotes.trim()) {
-    alert("Please enter notes when marking as failed");
-    return;
-  }
-  // باقي الكود...
-};
 
-// ========== جلب السجلات ==========
+// ✅ هاي بره الـ component صح
 const fetchLogsForApplication = async (applicationId) => {
   try {
     const token = getToken();
@@ -30,7 +22,6 @@ const fetchLogsForApplication = async (applicationId) => {
   }
 };
 
-// ========== قرار المشرف ==========
 const submitDecision = async (reportId, decision, notes) => {
   const token = getToken();
   const response = await fetch(`${API_BASE_URL}/reports/${reportId}/supervisor-decision`, {
@@ -48,10 +39,8 @@ const submitDecision = async (reportId, decision, notes) => {
   return await response.json();
 };
 
-// ========== بناء الأسابيع من السجلات ==========
 const buildWeeksFromLogs = (logs) => {
   if (!logs || logs.length === 0) return [];
-
   const weeksMap = new Map();
   let weekCounter = 0;
 
@@ -74,7 +63,6 @@ const buildWeeksFromLogs = (logs) => {
   logs.forEach(log => {
     const date = new Date(log.log_date);
     const weekKey = `${date.getFullYear()}-W${getWeekNumber(date)}`;
-
     if (!weeksMap.has(weekKey)) {
       weekCounter++;
       weeksMap.set(weekKey, {
@@ -86,7 +74,6 @@ const buildWeeksFromLogs = (logs) => {
         entries: [],
       });
     }
-
     const week = weeksMap.get(weekKey);
     week.totalHours += log.hours;
     week.days++;
@@ -97,19 +84,22 @@ const buildWeeksFromLogs = (logs) => {
       hours: `${log.hours}h`,
       eval: log.company_feedback || log.status || "—",
     });
-
     week.entries.sort((a, b) => new Date(a.date) - new Date(b.date));
   });
 
   return Array.from(weeksMap.values());
 };
 
-// ========== Modal ==========
+// ✅ handleDecision داخل الـ Modal مش برا
 function FinalReportModal({ report, onClose, onDecisionSubmitted }) {
   const [decisionNotes, setDecisionNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleDecision = async (decision) => {
+    if (!report.reportId) {
+      alert("No report found for this student");
+      return;
+    }
     if (decision === "failed" && !decisionNotes.trim()) {
       alert("Please enter notes when marking as failed");
       return;
@@ -130,7 +120,6 @@ function FinalReportModal({ report, onClose, onDecisionSubmitted }) {
     <div className="sfr-overlay" onClick={onClose}>
       <div className="sfr-modal" onClick={(e) => e.stopPropagation()}>
         <button className="sfr-modal-close" onClick={onClose}>✕</button>
-
         <div className="sfr-head">
           <FaFileAlt className="sfr-head-icon" />
           <div>
@@ -140,31 +129,24 @@ function FinalReportModal({ report, onClose, onDecisionSubmitted }) {
         </div>
 
         <div className="sfr-body-wrap">
-          {/* Official Letter */}
           <div className="sfr-letter">
             <div className="sfr-letter-banner">
               <img src="/ptu-banner.png" alt="University Banner" />
             </div>
-
             <div className="sfr-letter-date">{report.reportDate} : التاريخ</div>
             <div className="sfr-letter-to">حضرة السادة : <strong>{report.company}</strong>. المحترمين</div>
-
             <div className="sfr-letter-subject">
               <strong>الموضوع : التدريب الميداني</strong><br />
               <strong>تخصص : {report.department}</strong>
             </div>
-
             <div className="sfr-letter-greeting">تحية طيبة وبعد..</div>
-
             <p className="sfr-letter-p">
               أرجو من حضرتكم التكرم بالسماح للطالب/ة <strong>{report.name}</strong> بالتدرب في مؤسستكم الموقرة أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب (160) ساعة تدريبية حيث يكون دوام الطالب في مؤسستكم مثل دوام العاملين فيها ولا يحق له التغيب دون إذن رسمي، وسيقدم الطالب المتدرب تقريراً عما اكتسبه من مهارات للمحاضر المسؤول عنه في الجامعة في نهاية هذه الفترة.
             </p>
             <p className="sfr-letter-p">
               يرجى من المشرف المباشر عن التدريب لديكم تعبئة نموذج التقييم المرفق ومتابعة حضور الطالب المتدرب من خلال نموذج الحضور والغياب المرفق وذلك بعد انتهاء فترة التدريب.
             </p>
-
             <div className="sfr-letter-closing">وتفضلوا بقبول فائق الاحترام..</div>
-
             <div className="sfr-letter-sig">
               <div>مسؤول التدريب : <strong>{report.uniCoord}</strong></div>
               <div className="sfr-letter-sig-uni">{report.university}</div>
@@ -173,7 +155,6 @@ function FinalReportModal({ report, onClose, onDecisionSubmitted }) {
 
           <div className="sfr-divider"></div>
 
-          {/* Filled by Company */}
           <div className="sfr-comp-head">
             <h3 className="sfr-comp-title">Final Training Report — Filled by Company</h3>
             <p className="sfr-comp-sub">Submitted by {report.company}</p>
@@ -241,7 +222,6 @@ function FinalReportModal({ report, onClose, onDecisionSubmitted }) {
           </div>
         </div>
 
-        {/* Footer Actions */}
         <div className="sfr-decision">
           <h4 className="sfr-dec-title">Your Decision</h4>
           <label className="sfr-dec-lbl">Reason / Notes (required if failing)</label>
@@ -269,7 +249,6 @@ function FinalReportModal({ report, onClose, onDecisionSubmitted }) {
   );
 }
 
-// ========== الصفحة الرئيسية ==========
 export default function SupervisorFinalReports() {
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -280,14 +259,12 @@ export default function SupervisorFinalReports() {
     setLoading(true);
     setError("");
     try {
-      // ✅ جلب كل طلبات الجامعة المكتملة
       const response = await applicationApi.university();
       const allApplications = response.applications || [];
 
-      // ✅ فقط الطلبات المكتملة
+      // ✅ فقط completed
       const completed = allApplications.filter(app => app.status === "completed");
 
-      // ✅ جلب logs لكل طالب
       const mapped = await Promise.all(completed.map(async (app) => {
         const student = app.studentId || {};
         const training = app.trainingId || {};
@@ -299,9 +276,9 @@ export default function SupervisorFinalReports() {
         const fullName = `${firstName} ${lastName}`.trim() || "Unknown";
         const initials = firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??";
 
-        // ✅ جلب الـ report الخاص بهاد الطلب
         let reportId = null, attendanceRate = 0, totalHours = 0;
         let rating = 0, perfComments = "", otherComments = "", reportDate = "";
+
         try {
           const token = getToken();
           const repRes = await fetch(`${API_BASE_URL}/reports/${app._id}`, {
@@ -310,7 +287,8 @@ export default function SupervisorFinalReports() {
           if (repRes.ok) {
             const repData = await repRes.json();
             const rep = repData.report;
-            if (rep) {
+            // ✅ بس لو في report مرسل
+            if (rep && rep.reportStatus === "sent") {
               reportId = rep._id;
               attendanceRate = rep.attendanceRate || 0;
               totalHours = rep.totalHours || 0;
@@ -320,13 +298,18 @@ export default function SupervisorFinalReports() {
               reportDate = rep.report_date
                 ? new Date(rep.report_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
                 : "";
+            } else {
+              // ✅ ما في report مرسل — تجاهل هاد الطلب
+              return null;
             }
+          } else {
+            return null;
           }
         } catch (e) {
           console.error("Error fetching report:", e);
+          return null;
         }
 
-        // ✅ جلب الـ logs
         const logsData = await fetchLogsForApplication(app._id);
         const weeks = logsData?.logs ? buildWeeksFromLogs(logsData.logs) : [];
 
@@ -359,7 +342,8 @@ export default function SupervisorFinalReports() {
         };
       }));
 
-      setReports(mapped);
+      // ✅ احذف الـ null
+      setReports(mapped.filter(Boolean));
     } catch (err) {
       setError(err.message || "Failed to load reports");
     } finally {
@@ -390,13 +374,11 @@ export default function SupervisorFinalReports() {
         <h1 className="sfr-page-title">Final Reports</h1>
         <p className="sfr-page-sub">Review the official training report sent back by each company and decide if the student passed.</p>
       </div>
-
       <div className="sfr-list-container">
         <div className="sfr-list-header">
           <FaFileAlt color="#7c5cbf" /> <strong>Incoming Reports ({reports.length})</strong>
         </div>
         <p className="sfr-list-sub">Click a report to view the full official letter and submit your decision.</p>
-
         <div className="sfr-list">
           {reports.length === 0 && (
             <div className="sfr-empty">No completed reports found.</div>
@@ -430,7 +412,6 @@ export default function SupervisorFinalReports() {
           ))}
         </div>
       </div>
-
       {selectedReport && (
         <FinalReportModal
           report={selectedReport}
