@@ -3,40 +3,30 @@ import {
   FaFileAlt, FaCheckCircle, FaChevronRight, FaStar,
   FaTimesCircle, FaRegClock, FaSpinner, FaExclamationTriangle
 } from "react-icons/fa";
-import { applicationApi, getToken } from "../api/client";
+import { applicationApi, api } from "../api/client";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
-// ✅ هاي بره الـ component صح
 const fetchLogsForApplication = async (applicationId) => {
   try {
-    const token = getToken();
-    const response = await fetch(`${API_BASE_URL}/logs/${applicationId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!response.ok) return null;
-    return await response.json();
+    return await api(`/logs/${applicationId}`);
   } catch (err) {
     console.error("Error fetching logs:", err);
     return null;
   }
 };
 
-const submitDecision = async (reportId, decision, notes) => {
-  const token = getToken();
-  const response = await fetch(`${API_BASE_URL}/reports/${reportId}/supervisor-decision`, {
-    method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ decision, supervisorNotes: notes }),
-  });
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.message || "Failed to submit decision");
+const fetchReport = async (applicationId) => {
+  try {
+    return await api(`/reports/${applicationId}`);
+  } catch (err) {
+    return null;
   }
-  return await response.json();
+};
+
+const submitDecision = async (reportId, decision, notes) => {
+  return await api(`/reports/${reportId}/supervisor-decision`, {
+    method: "PATCH",
+    body: { decision, supervisorNotes: notes },
+  });
 };
 
 const buildWeeksFromLogs = (logs) => {
@@ -90,7 +80,25 @@ const buildWeeksFromLogs = (logs) => {
   return Array.from(weeksMap.values());
 };
 
-// ✅ handleDecision داخل الـ Modal مش برا
+// badge حسب الـ passStatus
+const passStatusBadge = (passStatus) => {
+  if (passStatus === "passed") return (
+    <span className="sfr-cbadge-passed">
+      <FaCheckCircle size={12} /> Passed
+    </span>
+  );
+  if (passStatus === "failed") return (
+    <span className="sfr-cbadge-failed">
+      <FaTimesCircle size={12} /> Failed
+    </span>
+  );
+  return (
+    <span className="sfr-cbadge-pending">
+      <FaRegClock size={12} /> Pending Decision
+    </span>
+  );
+};
+
 function FinalReportModal({ report, onClose, onDecisionSubmitted }) {
   const [decisionNotes, setDecisionNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -115,6 +123,9 @@ function FinalReportModal({ report, onClose, onDecisionSubmitted }) {
       setIsProcessing(false);
     }
   };
+
+  // نخبي أزرار القرار لو القرار خذ مسبقاً
+  const decisionTaken = report.passStatus === "passed" || report.passStatus === "failed";
 
   return (
     <div className="sfr-overlay" onClick={onClose}>
@@ -196,7 +207,11 @@ function FinalReportModal({ report, onClose, onDecisionSubmitted }) {
                 {report.weeks.map(week =>
                   week.entries.map((entry, idx) => (
                     <tr key={`${week.label}-${idx}`}>
-                      {idx === 0 && <td rowSpan={week.entries.length} className="sfr-td-week"><strong>{week.label}</strong></td>}
+                      {idx === 0 && (
+                        <td rowSpan={week.entries.length} className="sfr-td-week">
+                          <strong>{week.label}</strong>
+                        </td>
+                      )}
                       <td>{entry.day}</td>
                       <td>{entry.date}</td>
                       <td className="sfr-td-task">{entry.task}</td>
@@ -224,25 +239,48 @@ function FinalReportModal({ report, onClose, onDecisionSubmitted }) {
 
         <div className="sfr-decision">
           <h4 className="sfr-dec-title">Your Decision</h4>
-          <label className="sfr-dec-lbl">Reason / Notes (required if failing)</label>
-          <textarea
-            className="sfr-dec-textarea"
-            placeholder="—"
-            value={decisionNotes}
-            onChange={(e) => setDecisionNotes(e.target.value)}
-            disabled={isProcessing}
-          />
-          <div className="sfr-dec-actions">
-            <button className="sfr-btn-close" onClick={onClose} disabled={isProcessing}>Close</button>
-            <div className="sfr-dec-right">
-              <button className="sfr-btn-fail" onClick={() => handleDecision("failed")} disabled={isProcessing}>
-                {isProcessing ? <FaSpinner className="spinner" /> : <FaTimesCircle size={14} />} Mark as Failed
-              </button>
-              <button className="sfr-btn-pass" onClick={() => handleDecision("passed")} disabled={isProcessing}>
-                {isProcessing ? <FaSpinner className="spinner" /> : <FaCheckCircle size={14} />} Mark as Passed
-              </button>
+          {decisionTaken ? (
+            // ✅ لو القرار خذ — عرض الحالة بس
+            <div style={{ marginBottom: 16 }}>
+              {passStatusBadge(report.passStatus)}
+              {report.supervisorNotes && (
+                <p style={{ marginTop: 8, color: "#666", fontSize: 14 }}>
+                  Notes: {report.supervisorNotes}
+                </p>
+              )}
             </div>
-          </div>
+          ) : (
+            // ✅ لو ما خذ قرار بعد — عرض الأزرار
+            <>
+              <label className="sfr-dec-lbl">Reason / Notes (required if failing)</label>
+              <textarea
+                className="sfr-dec-textarea"
+                placeholder="—"
+                value={decisionNotes}
+                onChange={(e) => setDecisionNotes(e.target.value)}
+                disabled={isProcessing}
+              />
+              <div className="sfr-dec-actions">
+                <button className="sfr-btn-close" onClick={onClose} disabled={isProcessing}>Close</button>
+                <div className="sfr-dec-right">
+                  <button
+                    className="sfr-btn-fail"
+                    onClick={() => handleDecision("failed")}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? <FaSpinner className="spinner" /> : <FaTimesCircle size={14} />} Mark as Failed
+                  </button>
+                  <button
+                    className="sfr-btn-pass"
+                    onClick={() => handleDecision("passed")}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? <FaSpinner className="spinner" /> : <FaCheckCircle size={14} />} Mark as Passed
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -262,70 +300,58 @@ export default function SupervisorFinalReports() {
       const response = await applicationApi.university();
       const allApplications = response.applications || [];
 
-      // ✅ فقط completed
       const completed = allApplications.filter(app => app.status === "completed");
 
       const mapped = await Promise.all(completed.map(async (app) => {
-        const student = app.studentId || {};
+        const student  = app.studentId  || {};
         const training = app.trainingId || {};
-        const company = app.companyId || {};
+        const company  = app.companyId  || {};
         const university = app.universityId || {};
 
         const firstName = student.firstName || "";
-        const lastName = student.lastName || "";
-        const fullName = `${firstName} ${lastName}`.trim() || "Unknown";
-        const initials = firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??";
+        const lastName  = student.lastName  || "";
+        const fullName  = `${firstName} ${lastName}`.trim() || "Unknown";
+        const initials  = firstName
+          ? `${firstName[0]}${lastName?.[0] || ""}`.toUpperCase()
+          : "??";
 
-        let reportId = null, attendanceRate = 0, totalHours = 0;
-        let rating = 0, perfComments = "", otherComments = "", reportDate = "";
+        const repData = await fetchReport(app._id);
+        if (!repData?.report) return null;
 
-        try {
-          const token = getToken();
-          const repRes = await fetch(`${API_BASE_URL}/reports/${app._id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (repRes.ok) {
-            const repData = await repRes.json();
-            const rep = repData.report;
-            // ✅ بس لو في report مرسل
-            if (rep && rep.reportStatus === "sent") {
-              reportId = rep._id;
-              attendanceRate = rep.attendanceRate || 0;
-              totalHours = rep.totalHours || 0;
-              rating = rep.overallRating || 0;
-              perfComments = rep.performanceSummary || "";
-              otherComments = rep.additionalFeedback || "";
-              reportDate = rep.report_date
-                ? new Date(rep.report_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-                : "";
-            } else {
-              // ✅ ما في report مرسل — تجاهل هاد الطلب
-              return null;
-            }
-          } else {
-            return null;
-          }
-        } catch (e) {
-          console.error("Error fetching report:", e);
-          return null;
-        }
+        const rep = repData.report;
+        if (rep.reportStatus !== "sent") return null;
+
+        const reportId      = rep._id;
+        const attendanceRate = rep.attendanceRate  || 0;
+        const totalHours    = rep.totalHours       || 0;
+        const rating        = rep.overallRating    || 0;
+        const perfComments  = rep.performanceSummary || "";
+        const otherComments = rep.additionalFeedback || "";
+        // ✅ passStatus من الـ response
+        const passStatus    = rep.passStatus       || "pending_review";
+        const supervisorNotes = rep.supervisorNotes || "";
+        const reportDate    = rep.report_date
+          ? new Date(rep.report_date).toLocaleDateString("en-US", {
+              month: "long", day: "numeric", year: "numeric"
+            })
+          : "";
 
         const logsData = await fetchLogsForApplication(app._id);
         const weeks = logsData?.logs ? buildWeeksFromLogs(logsData.logs) : [];
 
         return {
-          id: app._id,
+          id:           app._id,
           reportId,
-          name: fullName,
-          idNum: student.studentID || "N/A",
+          name:         fullName,
+          idNum:        student.studentID || "N/A",
           initials,
-          color: "#f0e6ff",
-          textColor: "#7c5cbf",
-          university: university.name || student.university_name || "N/A",
+          color:        "#f0e6ff",
+          textColor:    "#7c5cbf",
+          university:   university.name || student.university_name || "N/A",
           trainingTitle: training.title || "N/A",
-          department: student.major || "N/A",
-          company: company.name || "N/A",
-          supervisor: company.trainer?.firstName
+          department:   student.major   || "N/A",
+          company:      company.name    || "N/A",
+          supervisor:   company.trainer?.firstName
             ? `${company.trainer.firstName} ${company.trainer.lastName || ""}`.trim()
             : "N/A",
           uniCoord: localStorage.getItem("firstName")
@@ -336,13 +362,15 @@ export default function SupervisorFinalReports() {
           rating,
           perfComments,
           otherComments,
+          // ✅ هاد هو المهم
+          passStatus,
+          supervisorNotes,
           reportDate,
           sentDate: reportDate,
           weeks,
         };
       }));
 
-      // ✅ احذف الـ null
       setReports(mapped.filter(Boolean));
     } catch (err) {
       setError(err.message || "Failed to load reports");
@@ -395,7 +423,9 @@ export default function SupervisorFinalReports() {
                     <span className="sfr-cid">{r.idNum}</span>
                   </div>
                   <div className="sfr-card-row2">
-                    <span className="sfr-cat">{r.company} - {r.trainingTitle}{r.sentDate ? ` - Sent ${r.sentDate}` : ""}</span>
+                    <span className="sfr-cat">
+                      {r.company} - {r.trainingTitle}{r.sentDate ? ` - Sent ${r.sentDate}` : ""}
+                    </span>
                   </div>
                 </div>
                 <div className="sfr-card-right">
@@ -404,7 +434,8 @@ export default function SupervisorFinalReports() {
                       <FaStar key={i} size={14} color={i <= r.rating ? "#7c5cbf" : "#e0e0e0"} />
                     ))}
                   </div>
-                  <span className="sfr-cbadge-pending"><FaRegClock size={12} /> Pending Decision</span>
+                  {/* ✅ badge حسب passStatus */}
+                  {passStatusBadge(r.passStatus)}
                   <FaChevronRight size={14} color="#aaa" />
                 </div>
               </div>
