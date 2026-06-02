@@ -191,11 +191,11 @@ export default function SupervisorInternProgress() {
       const response = await applicationApi.university();
       const allApplications = response.applications || [];
 
-      const applications = allApplications.filter(app =>
-        app.status === "company_final_approved" ||
-        app.status === "in_training" ||
-        app.status === "completed"
-      );
+      // ✅ الصح — بس in_training وcompleted
+const applications = allApplications.filter(app =>
+  app.status === "in_training" ||
+  app.status === "completed"
+);
 
       const mapped = await Promise.all(applications.map(async (app) => {
         const student = app.studentId || {};
