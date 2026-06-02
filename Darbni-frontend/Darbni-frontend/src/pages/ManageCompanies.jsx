@@ -20,9 +20,10 @@ const statusLabel = (status) => {
   return status;
 };
 
-function CompanyModal({ company, onClose, onApprove, onReject, isProcessing }) {
+function CompanyModal({ company, onClose, onApprove, onReject, processingId }) {
   if (!company) return null;
   const sc = statusColor(company.status);
+  const isProcessing = processingId === company.userId;
 
   return (
     <div className="mc-overlay" onClick={onClose}>
@@ -78,22 +79,36 @@ function CompanyModal({ company, onClose, onApprove, onReject, isProcessing }) {
           </div>
           <div className="mc-modal-field">
             <div className="mc-modal-field-label"><FaCalendarAlt /> Registered</div>
-            <div className="mc-modal-field-val">{company.createdAt ? new Date(company.createdAt).toLocaleDateString() : "N/A"}</div>
+            <div className="mc-modal-field-val">
+              {company.createdAt ? new Date(company.createdAt).toLocaleDateString() : "N/A"}
+            </div>
           </div>
         </div>
         <div className="mc-modal-footer">
           {company.status === "approved" && (
-            <button className="mc-btn-revoke" onClick={() => { onReject(company.userId); onClose(); }} disabled={isProcessing}>
+            <button
+              className="mc-btn-revoke"
+              onClick={() => { onReject(company.userId); onClose(); }}
+              disabled={isProcessing}
+            >
               {isProcessing ? <FaSpinner className="spinner" /> : null} Revoke Approval
             </button>
           )}
           {company.status === "pending" && (
             <>
-              <button className="mc-btn-reject" onClick={() => { onReject(company.userId); onClose(); }} disabled={isProcessing}>
+              <button
+                className="mc-btn-reject"
+                onClick={() => { onReject(company.userId); onClose(); }}
+                disabled={isProcessing}
+              >
                 <FaTimes /> Reject
               </button>
-              <button className="mc-btn-approve" onClick={() => { onApprove(company.userId); onClose(); }} disabled={isProcessing}>
-                <FaCheck /> Approve
+              <button
+                className="mc-btn-approve"
+                onClick={() => { onApprove(company.userId); onClose(); }}
+                disabled={isProcessing}
+              >
+                {isProcessing ? <FaSpinner className="spinner" /> : <FaCheck />} Approve
               </button>
             </>
           )}
@@ -104,26 +119,29 @@ function CompanyModal({ company, onClose, onApprove, onReject, isProcessing }) {
 }
 
 export default function ManageCompanies() {
-  const [companies, setCompanies] = useState([]);
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [companies, setCompanies]   = useState([]);
+  const [search, setSearch]         = useState("");
+  const [selected, setSelected]     = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState("");
+  // بدل isProcessing boolean — نحفظ userId اللي عم يتشتغل عليه
+  const [processingId, setProcessingId] = useState(null);
 
-  const mapCompany = (c, defaultStatus) => ({
-    userId: c.user?._id || "",
-    name: c.profile?.name || "N/A",
-    email: c.user?.email || "N/A",
-    industry: c.profile?.industry || "N/A",
-    city: c.profile?.city || "N/A",
-    phone: c.profile?.phone || "N/A",
-    website: c.profile?.website || "N/A",
-    about: c.profile?.about || "",
-    location: c.profile?.location || "N/A",
-    trainer: c.profile?.trainer || {},
+  const mapCompany = (c, fallbackStatus) => ({
+    userId:    c.user?._id || "",
+    name:      c.profile?.name     || "N/A",
+    email:     c.user?.email       || "N/A",
+    industry:  c.profile?.industry || "N/A",
+    city:      c.profile?.city     || "N/A",
+    phone:     c.profile?.phone    || "N/A",
+    website:   c.profile?.website  || "N/A",
+    about:     c.profile?.about    || "",
+    location:  c.profile?.location || "N/A",
+    trainer:   c.profile?.trainer  || {},
     createdAt: c.profile?.createdAt || "",
-    status: c.user?.verificationStatus || defaultStatus,
+    // verificationStatus من الـ API هو المصدر الحقيقي
+    // fallbackStatus بس لو غايب
+    status: c.user?.verificationStatus || fallbackStatus,
   });
 
   const fetchCompanies = async () => {
@@ -134,14 +152,23 @@ export default function ManageCompanies() {
         api("/supervisor/companies/pending"),
         api("/supervisor/companies"),
       ]);
+
       const pending = pendingRes.status === "fulfilled"
         ? (pendingRes.value.companies || []).map(c => mapCompany(c, "pending"))
         : [];
+
       const approved = approvedRes.status === "fulfilled"
         ? (approvedRes.value.companies || []).map(c => mapCompany(c, "approved"))
         : [];
-      const allIds = new Set(pending.map(c => c.userId));
-      setCompanies([...pending, ...approved.filter(c => !allIds.has(c.userId))]);
+
+      // نمنع التكرار — pending له أولوية
+      const pendingIds = new Set(pending.map(c => c.userId));
+      const merged = [
+        ...pending,
+        ...approved.filter(c => !pendingIds.has(c.userId)),
+      ];
+
+      setCompanies(merged);
     } catch (err) {
       setError(err.message || "Failed to load companies");
     } finally {
@@ -152,30 +179,39 @@ export default function ManageCompanies() {
   useEffect(() => { fetchCompanies(); }, []);
 
   const handleApprove = async (userId) => {
-    setIsProcessing(true);
+    setProcessingId(userId);
     try {
       await api(`/supervisor/companies/${userId}/approve`, { method: "PATCH" });
-      await fetchCompanies();
+      // نحدث الحالة locally بدون ما نعيد كل الفيتش
+      setCompanies(prev =>
+        prev.map(c => c.userId === userId ? { ...c, status: "approved" } : c)
+      );
+      // لو المودال مفتوح على نفس الشركة نحدثه
+      setSelected(prev => prev?.userId === userId ? { ...prev, status: "approved" } : prev);
     } catch (err) {
       alert(`Error: ${err.message}`);
     } finally {
-      setIsProcessing(false);
+      setProcessingId(null);
     }
   };
 
-  // ✅ بتبعت rejectionReason لأن الـ API بيطلبه حتى للـ Revoke
   const handleReject = async (userId) => {
-    setIsProcessing(true);
+    setProcessingId(userId);
     try {
+      // الـ API بيطلب reason — نبعت reason ثابت بدون ما يكتب المشرف شي
       await api(`/supervisor/companies/${userId}/reject`, {
         method: "PATCH",
-        body: { rejectionReason: "Approval revoked by supervisor" },
+        body: { reason: "Rejected by supervisor" },
       });
-      await fetchCompanies();
+      // نحدث الحالة locally — الشركة المرفوضة تبقى ظاهرة بحالة rejected
+      setCompanies(prev =>
+        prev.map(c => c.userId === userId ? { ...c, status: "rejected" } : c)
+      );
+      setSelected(prev => prev?.userId === userId ? { ...prev, status: "rejected" } : prev);
     } catch (err) {
       alert(`Error: ${err.message}`);
     } finally {
-      setIsProcessing(false);
+      setProcessingId(null);
     }
   };
 
@@ -240,13 +276,21 @@ export default function ManageCompanies() {
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ textAlign: "center", color: "#bbb", padding: 40 }}>No companies found</td>
+                <td colSpan={4} style={{ textAlign: "center", color: "#bbb", padding: 40 }}>
+                  No companies found
+                </td>
               </tr>
             )}
             {filtered.map((c) => {
               const sc = statusColor(c.status);
+              const isThisProcessing = processingId === c.userId;
               return (
-                <tr key={c.userId} className="mc-row" onClick={() => setSelected(c)} style={{ cursor: "pointer" }}>
+                <tr
+                  key={c.userId}
+                  className="mc-row"
+                  onClick={() => setSelected(c)}
+                  style={{ cursor: "pointer" }}
+                >
                   <td>
                     <div className="mc-company-cell">
                       <div className="mc-company-icon"><FaBuilding /></div>
@@ -265,23 +309,29 @@ export default function ManageCompanies() {
                   <td>
                     <div className="mc-actions">
                       {c.status === "approved" && (
-                        <button className="mc-btn-text mc-text-danger"
+                        <button
+                          className="mc-btn-text mc-text-danger"
                           onClick={(e) => { e.stopPropagation(); handleReject(c.userId); }}
-                          disabled={isProcessing}>
-                          Revoke
+                          disabled={isThisProcessing}
+                        >
+                          {isThisProcessing ? <FaSpinner className="spinner" /> : "Revoke"}
                         </button>
                       )}
                       {c.status === "pending" && (
                         <>
-                          <button className="mc-btn-outline mc-outline-success"
+                          <button
+                            className="mc-btn-outline mc-outline-success"
                             onClick={(e) => { e.stopPropagation(); handleApprove(c.userId); }}
-                            disabled={isProcessing}>
-                            {isProcessing ? <FaSpinner className="spinner" /> : <FaCheck />} Approve
+                            disabled={isThisProcessing}
+                          >
+                            {isThisProcessing ? <FaSpinner className="spinner" /> : <><FaCheck /> Approve</>}
                           </button>
-                          <button className="mc-btn-outline mc-outline-danger"
+                          <button
+                            className="mc-btn-outline mc-outline-danger"
                             onClick={(e) => { e.stopPropagation(); handleReject(c.userId); }}
-                            disabled={isProcessing}>
-                            <FaTimes /> Reject
+                            disabled={isThisProcessing}
+                          >
+                            {isThisProcessing ? <FaSpinner className="spinner" /> : <><FaTimes /> Reject</>}
                           </button>
                         </>
                       )}
@@ -299,7 +349,7 @@ export default function ManageCompanies() {
           onClose={() => setSelected(null)}
           onApprove={handleApprove}
           onReject={handleReject}
-          isProcessing={isProcessing}
+          processingId={processingId}
         />
       )}
     </div>
