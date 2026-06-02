@@ -164,18 +164,21 @@ export default function ManageCompanies() {
     }
   };
 
-  // ✅ reject بدون سبب
-  const handleReject = async (userId) => {
-    setIsProcessing(true);
-    try {
-      await api(`/supervisor/companies/${userId}/reject`, { method: "PATCH" });
-      await fetchCompanies();
-    } catch (err) {
-      alert(`Error: ${err.message}`);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  // ✅ عدلي handleReject هيك
+const handleReject = async (userId) => {
+  setIsProcessing(true);
+  try {
+    await api(`/supervisor/companies/${userId}/reject`, {
+      method: "PATCH",
+      body: { rejectionReason: "Approval revoked by supervisor" },
+    });
+    await fetchCompanies();
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   const filtered = companies.filter(c => {
     const q = search.toLowerCase();
