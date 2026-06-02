@@ -191,9 +191,9 @@ export default function SupervisorInternProgress() {
       const response = await applicationApi.university();
       const allApplications = response.applications || [];
 
-      // ✅ الصح — بس in_training وcompleted
+      // ✅ الصح — بس in progressوcompleted
 const applications = allApplications.filter(app =>
-  app.status === "in_training" ||
+  app.status === "in progress" ||
   app.status === "completed"
 );
 
