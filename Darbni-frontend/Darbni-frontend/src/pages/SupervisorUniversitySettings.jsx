@@ -1,91 +1,32 @@
-import { useState, useEffect } from "react";
-import { FaIdCard, FaAt, FaChartBar, FaSave, FaGlobe, FaUsers, FaBuilding, FaChartLine, FaCheckCircle, FaSpinner, FaExclamationTriangle } from "react-icons/fa";
-import { api } from "../api/client";
+import React, { useState } from "react";
+import { 
+  FaIdCard, FaCog, FaAt, FaChartBar, FaSave, FaGlobe,
+  FaUsers, FaBuilding, FaChartLine, FaCheckCircle 
+} from "react-icons/fa";
 
 export default function SupervisorUniversitySettings() {
   const [settings, setSettings] = useState({
-    name: "",
-    address: "",
-    website: "",
-    about: "",
+    universityName: "Palestine Technical University - Kadoorie",
+    abbreviation: "PTUK",
+    website: "https://ptuk.edu.ps",
+    description: "Palestine Technical University - Kadoorie is a leading university in Palestine offering programs in engineering, IT, and business.",
+    studentDomains: "students.ptuk.edu.ps",
+    staffDomains: "ptuk.edu.ps",
+    requiredHours: 200,
+    minWeeks: 8,
+    autoCancelDays: 3,
   });
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [toast, setToast] = useState(false);
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const [settingsRes, statsRes] = await Promise.allSettled([
-        api("/supervisor/settings"),
-        api("/supervisor/stats"),
-      ]);
-
-      if (settingsRes.status === "fulfilled") {
-        const u = settingsRes.value.university || {};
-        setSettings({
-          name:    u.name    || "",
-          address: u.address || "",
-          website: u.website || "",
-          about:   u.about   || "",
-        });
-      }
-
-      if (statsRes.status === "fulfilled") {
-        setStats(statsRes.value);
-      }
-    } catch (err) {
-      setError(err.message || "Failed to load settings");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchData(); }, []);
-
   const handleChange = (field, value) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
+    setSettings((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await api("/supervisor/settings", {
-        method: "PUT",
-        body: {
-          name:    settings.name,
-          address: settings.address,
-          website: settings.website,
-          about:   settings.about,
-        },
-      });
-      setToast(true);
-      setTimeout(() => setToast(false), 3000);
-    } catch (err) {
-      alert(`Error: ${err.message}`);
-    } finally {
-      setSaving(false);
-    }
+  const handleSave = () => {
+    // Save logic
+    setToast(true);
+    setTimeout(() => setToast(false), 3000);
   };
-
-  if (loading) return (
-    <div className="sus-page" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300 }}>
-      <FaSpinner className="spinner" />
-    </div>
-  );
-
-  if (error) return (
-    <div className="sus-page">
-      <div style={{ textAlign: "center", color: "#e74c3c", padding: 40 }}>
-        <FaExclamationTriangle size={24} />
-        <p>{error}</p>
-        <button onClick={fetchData} className="sus-btn-save">Try Again</button>
-      </div>
-    </div>
-  );
 
   return (
     <div className="sus-page">
@@ -105,73 +46,144 @@ export default function SupervisorUniversitySettings() {
 
             <div className="sus-field">
               <label className="sus-label">University Name</label>
-              <input
-                type="text"
-                className="sus-input"
-                value={settings.name}
-                onChange={e => handleChange("name", e.target.value)}
+              <input 
+                type="text" 
+                className="sus-input" 
+                value={settings.universityName} 
+                onChange={(e) => handleChange("universityName", e.target.value)} 
               />
             </div>
 
-            <div className="sus-field">
-              <label className="sus-label">Website</label>
-              <div className="sus-input-icon-wrapper">
-                <FaGlobe className="sus-input-icon" />
-                <input
-                  type="text"
-                  className="sus-input sus-input-with-icon"
-                  value={settings.website}
-                  onChange={e => handleChange("website", e.target.value)}
+            <div className="sus-field-row sus-field">
+              <div>
+                <label className="sus-label">Abbreviation</label>
+                <input 
+                  type="text" 
+                  className="sus-input" 
+                  value={settings.abbreviation} 
+                  onChange={(e) => handleChange("abbreviation", e.target.value)} 
                 />
+              </div>
+              <div>
+                <label className="sus-label">Website</label>
+                <div className="sus-input-icon-wrapper">
+                  <FaGlobe className="sus-input-icon" />
+                  <input 
+                    type="text" 
+                    className="sus-input sus-input-with-icon" 
+                    value={settings.website} 
+                    onChange={(e) => handleChange("website", e.target.value)} 
+                  />
+                </div>
               </div>
             </div>
 
             <div className="sus-field">
-              <label className="sus-label">Address</label>
-              <input
-                type="text"
-                className="sus-input"
-                value={settings.address}
-                onChange={e => handleChange("address", e.target.value)}
+              <label className="sus-label">Description</label>
+              <textarea 
+                className="sus-textarea" 
+                value={settings.description} 
+                onChange={(e) => handleChange("description", e.target.value)} 
               />
+            </div>
+          </div>
+
+          {/* Email Domains */}
+          <div className="sus-card">
+            <h2 className="sus-card-title">
+              <FaAt color="#7c5cbf" /> Email Domains
+            </h2>
+
+            <div className="sus-field">
+              <label className="sus-label">Student Email Domains</label>
+              <input 
+                type="text" 
+                className="sus-input" 
+                value={settings.studentDomains} 
+                onChange={(e) => handleChange("studentDomains", e.target.value)} 
+              />
+              <p className="sus-hint">Emails with this domain are auto-detected as students</p>
             </div>
 
             <div className="sus-field">
-              <label className="sus-label">About</label>
-              <textarea
-                className="sus-textarea"
-                value={settings.about}
-                onChange={e => handleChange("about", e.target.value)}
+              <label className="sus-label">Staff/Supervisor Domains</label>
+              <input 
+                type="text" 
+                className="sus-input" 
+                value={settings.staffDomains} 
+                onChange={(e) => handleChange("staffDomains", e.target.value)} 
               />
+              <p className="sus-hint">Emails with this domain are auto-detected as supervisors (admins)</p>
             </div>
           </div>
         </div>
 
-        {/* Right Column — Stats */}
+        {/* Right Column */}
         <div>
+          {/* Training Rules */}
+          <div className="sus-card" style={{ marginBottom: "24px" }}>
+            <h2 className="sus-card-title">
+              <FaCog color="#7c5cbf" /> Training Rules
+            </h2>
+
+            <div className="sus-field">
+              <label className="sus-label">Required Training Hours</label>
+              <input 
+                type="number" 
+                className="sus-input" 
+                value={settings.requiredHours} 
+                onChange={(e) => handleChange("requiredHours", e.target.value)} 
+              />
+              <p className="sus-hint">Total hours required to complete training</p>
+            </div>
+
+            <div className="sus-field">
+              <label className="sus-label">Minimum Training Weeks</label>
+              <input 
+                type="number" 
+                className="sus-input" 
+                value={settings.minWeeks} 
+                onChange={(e) => handleChange("minWeeks", e.target.value)} 
+              />
+            </div>
+
+            <div className="sus-field">
+              <label className="sus-label">Auto-Cancel Deadline (days)</label>
+              <input 
+                type="number" 
+                className="sus-input" 
+                value={settings.autoCancelDays} 
+                onChange={(e) => handleChange("autoCancelDays", e.target.value)} 
+              />
+              <p className="sus-hint">Days before unapproved requests are automatically cancelled</p>
+            </div>
+          </div>
+
+          {/* Platform Statistics */}
           <div className="sus-card">
             <h2 className="sus-card-title">
               <FaChartBar color="#7c5cbf" /> Platform Statistics
             </h2>
+
             <div className="sus-stats-grid">
               <div className="sus-stat-item">
                 <FaUsers className="sus-stat-icon" />
-                <div className="sus-stat-num">{stats?.registeredStudents ?? "—"}</div>
+                <div className="sus-stat-num">47</div>
                 <div className="sus-stat-lbl">Registered Students</div>
               </div>
               <div className="sus-stat-item">
                 <FaBuilding className="sus-stat-icon" />
-                <div className="sus-stat-num">{stats?.approvedCompanies ?? "—"}</div>
+                <div className="sus-stat-num">12</div>
                 <div className="sus-stat-lbl">Approved Companies</div>
               </div>
               <div className="sus-stat-item">
                 <FaChartLine className="sus-stat-icon" />
-                <div className="sus-stat-num">{stats?.activeTrainees ?? "—"}</div>
+                <div className="sus-stat-num">8</div>
                 <div className="sus-stat-lbl">Active Trainings</div>
               </div>
               <div className="sus-stat-item">
                 <FaCheckCircle className="sus-stat-icon" />
-                <div className="sus-stat-num">{stats?.completedTrainings ?? "—"}</div>
+                <div className="sus-stat-num">24</div>
                 <div className="sus-stat-lbl">Completed</div>
               </div>
             </div>
@@ -180,8 +192,8 @@ export default function SupervisorUniversitySettings() {
       </div>
 
       <div className="sus-actions">
-        <button className="sus-btn-save" onClick={handleSave} disabled={saving}>
-          {saving ? <FaSpinner className="spinner" /> : <FaSave />} Save Settings
+        <button className="sus-btn-save" onClick={handleSave}>
+          <FaSave /> Save Settings
         </button>
       </div>
 
