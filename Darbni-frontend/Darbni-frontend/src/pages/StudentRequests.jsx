@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FaCheck, FaTimes, FaChevronRight, FaClock, FaCheckCircle } from "react-icons/fa";
+import { FaCheck, FaTimes, FaChevronRight, FaClock, FaCheckCircle, FaSpinner } from "react-icons/fa";
 import { applicationApi } from "../api/client";
 
 const getColorForName = (name) => {
@@ -9,57 +9,86 @@ const getColorForName = (name) => {
 };
 
 const mapApplication = (app, statusType) => {
-  const student = app.studentId || {};
+  const student  = app.studentId  || {};
   const training = app.trainingId || {};
-  
   const firstName = student.firstName || "";
-  const lastName = student.lastName || "";
-  const fullName = `${firstName} ${lastName}`.trim() || "Unknown Student";
-  
+  const lastName  = student.lastName  || "";
+  const fullName  = `${firstName} ${lastName}`.trim() || "Unknown Student";
+
   let displayStatus = "pending";
   if (statusType === "resolved") {
-    if (app.status === "company_approved") displayStatus = "approved";
+    if (app.status === "company_approved")  displayStatus = "approved";
     else if (app.status === "company_rejected") displayStatus = "rejected";
   }
-  
+
   return {
-    id: app._id,
-    name: fullName,
-    initials: firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
-    color: getColorForName(firstName || fullName),
-    university: student.university_name || student.universityId?.name || "Unknown",
-    position: training.title || "Unknown Position",
-    date: app.createdAt 
+    id:              app._id,
+    name:            fullName,
+    initials:        firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
+    color:           getColorForName(firstName || fullName),
+    university:      student.university_name || student.universityId?.name || "Unknown",
+    position:        training.title || "Unknown Position",
+    date:            app.createdAt
       ? new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : "",
-    status: displayStatus,
-    resolvedDate: app.companyApprovedAt || app.companyRejectedAt
-      ? new Date(app.companyApprovedAt || app.companyRejectedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    status:          displayStatus,
+    resolvedDate:    app.companyApprovedAt
+      ? new Date(app.companyApprovedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : null,
     rejectionReason: app.companyRejectionReason || null,
-    coverLetter: app.coverLetter || null,
-    major: student.major || "N/A",
+    coverLetter:     app.coverLetter || null,
+    major:           student.major || "N/A",
   };
 };
 
+// ✅ Modal بسيط للـ rejection reason
+function RejectModal({ onConfirm, onCancel }) {
+  const [reason, setReason] = useState("");
+  return (
+    <div className="reject-overlay" onClick={onCancel}>
+      <div className="reject-modal" onClick={e => e.stopPropagation()}>
+        <h3 className="reject-modal-title">Reject Application</h3>
+        <p className="reject-modal-message">Please provide a reason for rejection:</p>
+        <textarea
+          className="reject-textarea"
+          rows={3}
+          placeholder="e.g. Position filled or requirements not met"
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          autoFocus
+        />
+        <div className="reject-modal-actions">
+          <button className="reject-btn-cancel" onClick={onCancel}>Cancel</button>
+          <button
+            className="reject-btn-confirm"
+            onClick={() => onConfirm(reason || "Rejected by company")}
+          >
+            Confirm Reject
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StudentRequests() {
-  const [pending, setPending] = useState([]);
-  const [resolved, setResolved] = useState([]);
-  const [activeTab, setActiveTab] = useState("pending");
+  const [pending, setPending]       = useState([]);
+  const [resolved, setResolved]     = useState([]);
+  const [activeTab, setActiveTab]   = useState("pending");
   const [expandedId, setExpandedId] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState("");
   const [processingId, setProcessingId] = useState(null);
+  // ✅ state للـ reject modal
+  const [rejectTarget, setRejectTarget] = useState(null);
 
   const loadApplications = async () => {
     setLoading(true);
     setError("");
     try {
       const response = await applicationApi.company();
-      const pendingApps = (response.pending || []).map(app => mapApplication(app, "pending"));
-      const resolvedApps = (response.resolved || []).map(app => mapApplication(app, "resolved"));
-      setPending(pendingApps);
-      setResolved(resolvedApps);
+      setPending((response.pending   || []).map(app => mapApplication(app, "pending")));
+      setResolved((response.resolved || []).map(app => mapApplication(app, "resolved")));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -67,9 +96,7 @@ export default function StudentRequests() {
     }
   };
 
-  useEffect(() => {
-    loadApplications();
-  }, []);
+  useEffect(() => { loadApplications(); }, []);
 
   const handleApprove = async (id) => {
     setProcessingId(id);
@@ -83,11 +110,9 @@ export default function StudentRequests() {
     }
   };
 
-  // ✅ استخدام prompt (شغال 100% وما بيحتاج CSS)
-  const handleReject = async (id) => {
-    const reason = prompt("Enter rejection reason:", "Position filled or requirements not met");
-    if (reason === null) return;
-    
+  const handleRejectConfirm = async (reason) => {
+    const id = rejectTarget;
+    setRejectTarget(null);
     setProcessingId(id);
     try {
       await applicationApi.companyResponse(id, "reject", reason);
@@ -100,10 +125,10 @@ export default function StudentRequests() {
   };
 
   const toggleExpand = (id) => {
-    setExpandedId((prev) => (prev === id ? null : id));
+    setExpandedId(prev => prev === id ? null : id);
   };
 
-  const displayList = activeTab === "pending" ? pending : resolved;
+  const displayList  = activeTab === "pending" ? pending : resolved;
   const pendingCount = pending.length;
   const resolvedCount = resolved.length;
 
@@ -126,21 +151,19 @@ export default function StudentRequests() {
           className={`sr-tab${activeTab === "pending" ? " sr-tab-active" : ""}`}
           onClick={() => setActiveTab("pending")}
         >
-          <FaClock size={12} />
-          Pending ({pendingCount})
+          <FaClock size={12} /> Pending ({pendingCount})
         </button>
         <button
           className={`sr-tab${activeTab === "resolved" ? " sr-tab-active" : ""}`}
           onClick={() => setActiveTab("resolved")}
         >
-          <FaCheckCircle size={12} />
-          Resolved ({resolvedCount})
+          <FaCheckCircle size={12} /> Resolved ({resolvedCount})
         </button>
       </div>
 
       {loading && (
         <div className="sr-loading">
-          <div className="sr-spinner"></div>
+          <FaSpinner className="spinner" />
           <p>Loading requests...</p>
         </div>
       )}
@@ -161,14 +184,12 @@ export default function StudentRequests() {
                 <div className="sr-avatar" style={{ background: req.color }}>
                   {req.initials}
                 </div>
-
                 <div className="sr-info">
                   <div className="sr-name">{req.name}</div>
                   <div className="sr-meta">
                     {req.university} · {req.position} · {req.date}
                   </div>
                 </div>
-
                 <div className="sr-actions">
                   {req.status === "pending" && (
                     <>
@@ -176,16 +197,20 @@ export default function StudentRequests() {
                       <button
                         className="sr-btn-approve"
                         disabled={processingId === req.id}
-                        onClick={(e) => { e.stopPropagation(); handleApprove(req.id); }}
+                        onClick={e => { e.stopPropagation(); handleApprove(req.id); }}
                       >
-                        <FaCheck size={11} /> {processingId === req.id ? "..." : "Approve"}
+                        {processingId === req.id
+                          ? <FaSpinner className="spinner" />
+                          : <><FaCheck size={11} /> Approve</>}
                       </button>
                       <button
                         className="sr-btn-reject"
                         disabled={processingId === req.id}
-                        onClick={(e) => { e.stopPropagation(); handleReject(req.id); }}
+                        onClick={e => { e.stopPropagation(); setRejectTarget(req.id); }}
                       >
-                        <FaTimes size={11} /> {processingId === req.id ? "..." : "Reject"}
+                        {processingId === req.id
+                          ? <FaSpinner className="spinner" />
+                          : <><FaTimes size={11} /> Reject</>}
                       </button>
                     </>
                   )}
@@ -256,6 +281,14 @@ export default function StudentRequests() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* ✅ Reject Modal */}
+      {rejectTarget && (
+        <RejectModal
+          onConfirm={handleRejectConfirm}
+          onCancel={() => setRejectTarget(null)}
+        />
       )}
     </div>
   );
