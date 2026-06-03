@@ -1,19 +1,24 @@
 import { useState, useEffect } from "react";
-import { FaIdCard, FaAt, FaChartBar, FaSave, FaGlobe, FaUsers, FaBuilding, FaChartLine, FaCheckCircle, FaSpinner, FaExclamationTriangle } from "react-icons/fa";
+import {
+  FaIdCard, FaChartBar, FaSave, FaGlobe,
+  FaUsers, FaBuilding, FaChartLine, FaCheckCircle,
+  FaSpinner, FaExclamationTriangle, FaCog
+} from "react-icons/fa";
 import { api } from "../api/client";
 
 export default function SupervisorUniversitySettings() {
   const [settings, setSettings] = useState({
-    name: "",
-    address: "",
-    website: "",
-    about: "",
+    name:          "",
+    address:       "",
+    website:       "",
+    about:         "",
+    requiredHours: 160,
   });
-  const [stats, setStats] = useState(null);
+  const [stats, setStats]     = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [toast, setToast] = useState(false);
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState("");
+  const [toast, setToast]     = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -27,10 +32,11 @@ export default function SupervisorUniversitySettings() {
       if (settingsRes.status === "fulfilled") {
         const u = settingsRes.value.university || {};
         setSettings({
-          name:    u.name    || "",
-          address: u.address || "",
-          website: u.website || "",
-          about:   u.about   || "",
+          name:          u.name    || "",
+          address:       u.address || "",
+          website:       u.website || "",
+          about:         u.about   || "",
+          requiredHours: u.trainingSettings?.requiredHours || 160,
         });
       }
 
@@ -62,6 +68,7 @@ export default function SupervisorUniversitySettings() {
           about:   settings.about,
         },
       });
+      if (settings.name) localStorage.setItem("university", settings.name);
       setToast(true);
       setTimeout(() => setToast(false), 3000);
     } catch (err) {
@@ -82,7 +89,9 @@ export default function SupervisorUniversitySettings() {
       <div style={{ textAlign: "center", color: "#e74c3c", padding: 40 }}>
         <FaExclamationTriangle size={24} />
         <p>{error}</p>
-        <button onClick={fetchData} className="sus-btn-save">Try Again</button>
+        <button onClick={fetchData} className="sus-btn-save" style={{ marginTop: 12 }}>
+          Try Again
+        </button>
       </div>
     </div>
   );
@@ -97,8 +106,7 @@ export default function SupervisorUniversitySettings() {
       <div className="sus-grid">
         {/* Left Column */}
         <div>
-          {/* General Information */}
-          <div className="sus-card" style={{ marginBottom: "24px" }}>
+          <div className="sus-card">
             <h2 className="sus-card-title">
               <FaIdCard color="#7c5cbf" /> General Information
             </h2>
@@ -147,8 +155,27 @@ export default function SupervisorUniversitySettings() {
           </div>
         </div>
 
-        {/* Right Column — Stats */}
+        {/* Right Column */}
         <div>
+          {/* Training Rules — read only */}
+          <div className="sus-card" style={{ marginBottom: "24px" }}>
+            <h2 className="sus-card-title">
+              <FaCog color="#7c5cbf" /> Training Rules
+            </h2>
+            <div className="sus-field">
+              <label className="sus-label">Required Training Hours</label>
+              <input
+                type="number"
+                className="sus-input"
+                value={settings.requiredHours}
+                disabled
+                style={{ background: "#f5f4f9", color: "#888", cursor: "not-allowed" }}
+              />
+              <p className="sus-hint">Total hours required to complete training</p>
+            </div>
+          </div>
+
+          {/* Platform Statistics */}
           <div className="sus-card">
             <h2 className="sus-card-title">
               <FaChartBar color="#7c5cbf" /> Platform Statistics
