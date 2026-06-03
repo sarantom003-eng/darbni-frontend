@@ -20,7 +20,7 @@ const statusLabel = (status) => {
   return status;
 };
 
-function CompanyModal({ company, onClose, onApprove, onReject, processingId }) {
+function CompanyModal({ company, onClose, onApprove, onReject, onRevoke, processingId }) {
   if (!company) return null;
   const sc = statusColor(company.status);
   const isProcessing = processingId === company.userId;
@@ -88,7 +88,7 @@ function CompanyModal({ company, onClose, onApprove, onReject, processingId }) {
           {company.status === "approved" && (
             <button
               className="mc-btn-revoke"
-              onClick={() => { onReject(company.userId); onClose(); }}
+              onClick={() => { onRevoke(company.userId); onClose(); }}
               disabled={isProcessing}
             >
               {isProcessing ? <FaSpinner className="spinner" /> : null} Revoke Approval
@@ -119,29 +119,26 @@ function CompanyModal({ company, onClose, onApprove, onReject, processingId }) {
 }
 
 export default function ManageCompanies() {
-  const [companies, setCompanies]   = useState([]);
-  const [search, setSearch]         = useState("");
-  const [selected, setSelected]     = useState(null);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState("");
-  // بدل isProcessing boolean — نحفظ userId اللي عم يتشتغل عليه
+  const [companies, setCompanies]       = useState([]);
+  const [search, setSearch]             = useState("");
+  const [selected, setSelected]         = useState(null);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState("");
   const [processingId, setProcessingId] = useState(null);
 
   const mapCompany = (c, fallbackStatus) => ({
-    userId:    c.user?._id || "",
-    name:      c.profile?.name     || "N/A",
-    email:     c.user?.email       || "N/A",
-    industry:  c.profile?.industry || "N/A",
-    city:      c.profile?.city     || "N/A",
-    phone:     c.profile?.phone    || "N/A",
-    website:   c.profile?.website  || "N/A",
-    about:     c.profile?.about    || "",
-    location:  c.profile?.location || "N/A",
-    trainer:   c.profile?.trainer  || {},
-    createdAt: c.profile?.createdAt || "",
-    // verificationStatus من الـ API هو المصدر الحقيقي
-    // fallbackStatus بس لو غايب
-    status: c.user?.verificationStatus || fallbackStatus,
+    userId:    c.user?._id              || "",
+    name:      c.profile?.name          || "N/A",
+    email:     c.user?.email            || "N/A",
+    industry:  c.profile?.industry      || "N/A",
+    city:      c.profile?.city          || "N/A",
+    phone:     c.profile?.phone         || "N/A",
+    website:   c.profile?.website       || "N/A",
+    about:     c.profile?.about         || "",
+    location:  c.profile?.location      || "N/A",
+    trainer:   c.profile?.trainer       || {},
+    createdAt: c.profile?.createdAt     || "",
+    status:    c.user?.verificationStatus || fallbackStatus,
   });
 
   const fetchCompanies = async () => {
@@ -161,14 +158,11 @@ export default function ManageCompanies() {
         ? (approvedRes.value.companies || []).map(c => mapCompany(c, "approved"))
         : [];
 
-      // نمنع التكرار — pending له أولوية
       const pendingIds = new Set(pending.map(c => c.userId));
-      const merged = [
+      setCompanies([
         ...pending,
         ...approved.filter(c => !pendingIds.has(c.userId)),
-      ];
-
-      setCompanies(merged);
+      ]);
     } catch (err) {
       setError(err.message || "Failed to load companies");
     } finally {
@@ -182,11 +176,9 @@ export default function ManageCompanies() {
     setProcessingId(userId);
     try {
       await api(`/supervisor/companies/${userId}/approve`, { method: "PATCH" });
-      // نحدث الحالة locally بدون ما نعيد كل الفيتش
       setCompanies(prev =>
         prev.map(c => c.userId === userId ? { ...c, status: "approved" } : c)
       );
-      // لو المودال مفتوح على نفس الشركة نحدثه
       setSelected(prev => prev?.userId === userId ? { ...prev, status: "approved" } : prev);
     } catch (err) {
       alert(`Error: ${err.message}`);
@@ -195,15 +187,30 @@ export default function ManageCompanies() {
     }
   };
 
+  // ✅ Reject — للـ pending فقط — مع reason
   const handleReject = async (userId) => {
     setProcessingId(userId);
     try {
-      // الـ API بيطلب reason — نبعت reason ثابت بدون ما يكتب المشرف شي
       await api(`/supervisor/companies/${userId}/reject`, {
         method: "PATCH",
         body: { reason: "Rejected by supervisor" },
       });
-      // نحدث الحالة locally — الشركة المرفوضة تبقى ظاهرة بحالة rejected
+      setCompanies(prev =>
+        prev.map(c => c.userId === userId ? { ...c, status: "rejected" } : c)
+      );
+      setSelected(prev => prev?.userId === userId ? { ...prev, status: "rejected" } : prev);
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // ✅ Revoke — للـ approved فقط — بدون body
+  const handleRevoke = async (userId) => {
+    setProcessingId(userId);
+    try {
+      await api(`/supervisor/companies/${userId}/revoke`, { method: "PATCH" });
       setCompanies(prev =>
         prev.map(c => c.userId === userId ? { ...c, status: "rejected" } : c)
       );
@@ -311,7 +318,7 @@ export default function ManageCompanies() {
                       {c.status === "approved" && (
                         <button
                           className="mc-btn-text mc-text-danger"
-                          onClick={(e) => { e.stopPropagation(); handleReject(c.userId); }}
+                          onClick={(e) => { e.stopPropagation(); handleRevoke(c.userId); }}
                           disabled={isThisProcessing}
                         >
                           {isThisProcessing ? <FaSpinner className="spinner" /> : "Revoke"}
@@ -349,6 +356,7 @@ export default function ManageCompanies() {
           onClose={() => setSelected(null)}
           onApprove={handleApprove}
           onReject={handleReject}
+          onRevoke={handleRevoke}
           processingId={processingId}
         />
       )}
