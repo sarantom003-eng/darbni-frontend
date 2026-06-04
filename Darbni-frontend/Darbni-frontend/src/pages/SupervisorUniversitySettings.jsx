@@ -8,11 +8,12 @@ import { api } from "../api/client";
 
 export default function SupervisorUniversitySettings() {
   const [settings, setSettings] = useState({
-    name:          "",
-    address:       "",
-    website:       "",
-    about:         "",
-    requiredHours: 160,
+    name:                 "",
+    address:              "",
+    website:              "",
+    about:                "",
+    requiredHours:        160,
+    requiredCreditHours:  90,
   });
   const [stats, setStats]     = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,11 +33,12 @@ export default function SupervisorUniversitySettings() {
       if (settingsRes.status === "fulfilled") {
         const u = settingsRes.value.university || {};
         setSettings({
-          name:          u.name    || "",
-          address:       u.address || "",
-          website:       u.website || "",
-          about:         u.about   || "",
-          requiredHours: u.trainingSettings?.requiredHours || 160,
+          name:                u.name    || "",
+          address:             u.address || "",
+          website:             u.website || "",
+          about:               u.about   || "",
+          requiredHours:       u.trainingSettings?.requiredHours      || 160,
+          requiredCreditHours: u.trainingSettings?.requiredCreditHours || 90,
         });
       }
 
@@ -162,6 +164,7 @@ export default function SupervisorUniversitySettings() {
             <h2 className="sus-card-title">
               <FaCog color="#7c5cbf" /> Training Rules
             </h2>
+
             <div className="sus-field">
               <label className="sus-label">Required Training Hours</label>
               <input
@@ -172,6 +175,18 @@ export default function SupervisorUniversitySettings() {
                 style={{ background: "#f5f4f9", color: "#888", cursor: "not-allowed" }}
               />
               <p className="sus-hint">Total hours required to complete training</p>
+            </div>
+
+            <div className="sus-field">
+              <label className="sus-label">Minimum Completed Credit Hours</label>
+              <input
+                type="number"
+                className="sus-input"
+                value={settings.requiredCreditHours}
+                disabled
+                style={{ background: "#f5f4f9", color: "#888", cursor: "not-allowed" }}
+              />
+              <p className="sus-hint">Student must complete at least {settings.requiredCreditHours} credit hours before applying</p>
             </div>
           </div>
 
