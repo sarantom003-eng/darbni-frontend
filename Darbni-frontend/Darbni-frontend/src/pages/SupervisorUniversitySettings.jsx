@@ -8,12 +8,12 @@ import { api } from "../api/client";
 
 export default function SupervisorUniversitySettings() {
   const [settings, setSettings] = useState({
-    name:                 "",
-    address:              "",
-    website:              "",
-    about:                "",
-    requiredHours:        160,
-    requiredCreditHours:  90,
+    name:                "",
+    address:             "",
+    website:             "",
+    about:               "",
+    requiredHours:       160,
+    requiredCreditHours: 90,
   });
   const [stats, setStats]     = useState(null);
   const [loading, setLoading] = useState(true);
@@ -68,6 +68,10 @@ export default function SupervisorUniversitySettings() {
           address: settings.address,
           website: settings.website,
           about:   settings.about,
+          trainingSettings: {
+            requiredHours:      settings.requiredHours,
+            requiredCreditHours: 90,
+          },
         },
       });
       if (settings.name) localStorage.setItem("university", settings.name);
@@ -159,24 +163,25 @@ export default function SupervisorUniversitySettings() {
 
         {/* Right Column */}
         <div>
-          {/* Training Rules — read only */}
+          {/* Training Rules */}
           <div className="sus-card" style={{ marginBottom: "24px" }}>
             <h2 className="sus-card-title">
               <FaCog color="#7c5cbf" /> Training Rules
             </h2>
 
+            {/* ✅ قابل للتعديل — شلنا disabled */}
             <div className="sus-field">
               <label className="sus-label">Required Training Hours</label>
               <input
                 type="number"
                 className="sus-input"
                 value={settings.requiredHours}
-                disabled
-                style={{ background: "#f5f4f9", color: "#888", cursor: "not-allowed" }}
+                onChange={e => handleChange("requiredHours", Number(e.target.value))}
               />
               <p className="sus-hint">Total hours required to complete training</p>
             </div>
 
+            {/* ✅ ثابت 90 — disabled */}
             <div className="sus-field">
               <label className="sus-label">Minimum Completed Credit Hours</label>
               <input
