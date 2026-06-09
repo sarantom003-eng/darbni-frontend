@@ -11,16 +11,17 @@ function StudentProfile() {
   const [saveError, setSaveError] = useState("");
 
   const [profile, setProfile] = useState({
-    firstName:   "",
-    lastName:    "",
-    email:       "",
-    phone:       "",
-    university:  "",
-    studentId:   "",
-    yearOfStudy: "",
-    major:       "",
-    interests:   "",
-    skills:      "",
+    firstName:            "",
+    lastName:             "",
+    email:                "",
+    phone:                "",
+    university:           "",
+    studentId:            "",
+    yearOfStudy:          "",
+    major:                "",
+    interests:            "",
+    skills:               "",
+    completedCreditHours: 0,
   });
 
   const [draft, setDraft] = useState({ ...profile });
@@ -28,8 +29,6 @@ function StudentProfile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // GET /profile/me
-        // Response: { profile: { firstName, lastName, ... }, email, role }
         const data        = await profileApi.me();
         const profileData = data.profile || data;
 
@@ -40,7 +39,7 @@ function StudentProfile() {
           phone:       profileData.phone       || "",
           university:  profileData.university_name || profileData.universityId?.name || "",
           studentId:   profileData.studentID   || "",
-          yearOfStudy: profileData.year_of_study ? `${profileData.year_of_study}th Year` : "",
+          yearOfStudy: profileData.year_of_study || "",
           major:       profileData.major       || "",
           interests:   Array.isArray(profileData.interests)
                          ? profileData.interests.join(", ")
@@ -48,9 +47,9 @@ function StudentProfile() {
           skills:      Array.isArray(profileData.skills)
                          ? profileData.skills.join(", ")
                          : (profileData.skills || ""),
+          completedCreditHours: profileData.completedCreditHours || 0,
         });
 
-        // avatar من الـ Response
         if (profileData.avatar) setAvatar(profileData.avatar);
 
       } catch (err) {
@@ -83,19 +82,21 @@ function StudentProfile() {
     }
     setSaveError("");
     try {
-      // PUT /profile/me
-      // Body: { firstName, lastName, phone, skills[], interests[] }
       await profileApi.update({
-        firstName: draft.firstName,
-        lastName:  draft.lastName,
-        phone:     draft.phone,
-        skills:    draft.skills.split(",").map(s => s.trim()).filter(s => s),
-        interests: draft.interests.split(",").map(s => s.trim()).filter(s => s),
+        firstName:            draft.firstName,
+        lastName:             draft.lastName,
+        phone:                draft.phone,
+        skills:               draft.skills.split(",").map(s => s.trim()).filter(s => s),
+        interests:            draft.interests.split(",").map(s => s.trim()).filter(s => s),
+        studentID:            draft.studentId,
+        year_of_study:        Number(draft.yearOfStudy) || draft.yearOfStudy,
+        major:                draft.major,
+        university_name:      draft.university,
+        completedCreditHours: Number(draft.completedCreditHours) || 0,
       });
       setProfile({ ...draft });
       setIsEditing(false);
 
-      // تحديث الـ localStorage
       const stored = JSON.parse(localStorage.getItem("profile") || "{}");
       stored.firstName = draft.firstName;
       stored.lastName  = draft.lastName;
@@ -126,14 +127,9 @@ function StudentProfile() {
     formData.append("avatar", file);
 
     try {
-      // POST /upload/avatar
-      // Response: { message, avatarUrl }
       const res = await api("/upload/avatar", { method: "POST", body: formData });
-
       if (res.avatarUrl) {
         setAvatar(res.avatarUrl);
-
-        // تحديث الـ localStorage بالصورة الجديدة
         const stored = JSON.parse(localStorage.getItem("profile") || "{}");
         stored.avatar = res.avatarUrl;
         localStorage.setItem("profile", JSON.stringify(stored));
@@ -142,7 +138,6 @@ function StudentProfile() {
       alert(err.message || "Failed to upload avatar");
     } finally {
       setUploading(false);
-      // reset input عشان تقدري ترفعي نفس الصورة مرة ثانية
       e.target.value = "";
     }
   };
@@ -211,7 +206,7 @@ function StudentProfile() {
             <div className="profile-banner-name">{profile.university}</div>
             <div className="profile-banner-tags">
               {profile.yearOfStudy && (
-                <span className="profile-tag">🎓 {profile.yearOfStudy}</span>
+                <span className="profile-tag">🎓 Year {profile.yearOfStudy}</span>
               )}
               {profile.major && (
                 <span className="profile-tag">💻 {profile.major}</span>
@@ -250,15 +245,19 @@ function StudentProfile() {
               />
             </div>
           </div>
+
+          {/* ✅ Email قابل للتعديل */}
           <div className="profile-field">
             <label>Email</label>
             <input
               type="email"
-              value={profile.email}
-              disabled
-              className="profile-inp"
+              value={isEditing ? draft.email : profile.email}
+              onChange={e => handleDraftChange("email", e.target.value)}
+              disabled={!isEditing}
+              className={`profile-inp${isEditing ? " active" : ""}`}
             />
           </div>
+
           <div className="profile-field">
             <label>Phone</label>
             <input
@@ -272,15 +271,17 @@ function StudentProfile() {
           </div>
         </div>
 
+        {/* ✅ Academic Details كلها قابلة للتعديل + completedCreditHours جديد */}
         <div className="profile-section-card">
           <div className="profile-section-title">Academic Details</div>
           <div className="profile-field">
             <label>University</label>
             <input
               type="text"
-              value={profile.university}
-              disabled
-              className="profile-inp"
+              value={isEditing ? draft.university : profile.university}
+              onChange={e => handleDraftChange("university", e.target.value)}
+              disabled={!isEditing}
+              className={`profile-inp${isEditing ? " active" : ""}`}
             />
           </div>
           <div className="profile-row-2">
@@ -288,18 +289,21 @@ function StudentProfile() {
               <label>Student ID</label>
               <input
                 type="text"
-                value={profile.studentId}
-                disabled
-                className="profile-inp"
+                value={isEditing ? draft.studentId : profile.studentId}
+                onChange={e => handleDraftChange("studentId", e.target.value)}
+                disabled={!isEditing}
+                className={`profile-inp${isEditing ? " active" : ""}`}
               />
             </div>
             <div className="profile-field">
               <label>Year of Study</label>
               <input
-                type="text"
-                value={profile.yearOfStudy}
-                disabled
-                className="profile-inp"
+                type="number"
+                value={isEditing ? draft.yearOfStudy : profile.yearOfStudy}
+                onChange={e => handleDraftChange("yearOfStudy", e.target.value)}
+                disabled={!isEditing}
+                placeholder="e.g. 3"
+                className={`profile-inp${isEditing ? " active" : ""}`}
               />
             </div>
           </div>
@@ -307,10 +311,26 @@ function StudentProfile() {
             <label>Major</label>
             <input
               type="text"
-              value={profile.major}
-              disabled
-              className="profile-inp"
+              value={isEditing ? draft.major : profile.major}
+              onChange={e => handleDraftChange("major", e.target.value)}
+              disabled={!isEditing}
+              className={`profile-inp${isEditing ? " active" : ""}`}
             />
+          </div>
+          {/* ✅ حقل جديد */}
+          <div className="profile-field">
+            <label>Completed Credit Hours</label>
+            <input
+              type="number"
+              value={isEditing ? draft.completedCreditHours : profile.completedCreditHours}
+              onChange={e => handleDraftChange("completedCreditHours", e.target.value)}
+              disabled={!isEditing}
+              placeholder="e.g. 90"
+              className={`profile-inp${isEditing ? " active" : ""}`}
+            />
+            <small style={{ color: "#888", fontSize: 12 }}>
+              Minimum 90 credit hours required to apply for training
+            </small>
           </div>
         </div>
       </div>
