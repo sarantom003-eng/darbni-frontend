@@ -4,26 +4,24 @@ import { trainingApi } from "../api/client";
 
 const statusConfig = {
   active: { label: "Active", bg: "#4a3fa0", color: "#fff" },
-  full: { label: "Full", bg: "#f0eeff", color: "#4a3fa0" },
+  full:   { label: "Full",   bg: "#f0eeff", color: "#4a3fa0" },
   hidden: { label: "Hidden", bg: "#f5f5f5", color: "#888" },
 };
 
 function StatusBadge({ status }) {
   const c = statusConfig[status] || { label: status, bg: "#eee", color: "#555" };
-  return (
-    <span className="mi-badge" style={{ background: c.bg, color: c.color }}>{c.label}</span>
-  );
+  return <span className="mi-badge" style={{ background: c.bg, color: c.color }}>{c.label}</span>;
 }
 
 function ViewModal({ job, onClose, onEdit }) {
   const rows = [
-    { label: "Field", value: job.field },
-    { label: "Type", value: job.type },
-    { label: "Location", value: job.location },
-    { label: "Positions", value: `${job.filled}/${job.positions} filled` },
+    { label: "Field",        value: job.field },
+    { label: "Type",         value: job.type },
+    { label: "Location",     value: job.location },
+    { label: "Positions",    value: `${job.filled}/${job.positions} filled` },
     { label: "Weekly Hours", value: `${job.hours}h` },
-    { label: "Total Hours", value: `${job.totalHours || "N/A"}h` },
-    { label: "Status", value: job.status.charAt(0).toUpperCase() + job.status.slice(1) },
+    { label: "Total Hours",  value: `${job.totalHours || "N/A"}h` },
+    { label: "Status",       value: job.status.charAt(0).toUpperCase() + job.status.slice(1) },
   ];
   return (
     <div className="mi-overlay" onClick={onClose}>
@@ -60,34 +58,20 @@ function ViewModal({ job, onClose, onEdit }) {
 }
 
 function EditModal({ job, onClose, onSave }) {
-  const [title, setTitle] = useState(job.title);
-  const [field, setField] = useState(job.field);
-  const [location, setLocation] = useState(job.location);
-  const [type, setType] = useState(job.type);
-  const [capacity, setCapacity] = useState(String(job.positions));
-  const [hours, setHours] = useState(String(job.hours));
+  const [title,      setTitle]      = useState(job.title);
+  const [field,      setField]      = useState(job.field);
+  const [location,   setLocation]   = useState(job.location);
+  const [type,       setType]       = useState(job.type);
+  const [capacity,   setCapacity]   = useState(String(job.positions));
+  const [hours,      setHours]      = useState(String(job.hours));
   const [totalHours, setTotalHours] = useState(String(job.totalHours || "160"));
-  const [desc, setDesc] = useState(job.description || "");
-  const [benefits, setBenefits] = useState(job.benefits || "");
+  const [desc,       setDesc]       = useState(job.description || "");
+  const [benefits,   setBenefits]   = useState(job.benefits || "");
 
   const handleSave = () => {
     if (!title.trim() || !field.trim()) return;
-    if (Number(totalHours) < 160) {
-      alert("Total hours must be at least 160");
-      return;
-    }
-    onSave({ 
-      ...job, 
-      title, 
-      field, 
-      location, 
-      type, 
-      positions: Number(capacity), 
-      hours: Number(hours),
-      totalHours: Number(totalHours),
-      description: desc, 
-      benefits 
-    });
+    if (Number(totalHours) < 160) { alert("Total hours must be at least 160"); return; }
+    onSave({ ...job, title, field, location, type, positions: Number(capacity), hours: Number(hours), totalHours: Number(totalHours), description: desc, benefits });
   };
 
   return (
@@ -122,25 +106,19 @@ function EditModal({ job, onClose, onSave }) {
 }
 
 function AddModal({ onClose, onSave }) {
-  const [title, setTitle] = useState("");
-  const [field, setField] = useState("");
-  const [location, setLocation] = useState("");
-  const [type, setType] = useState("In-person");
-  const [capacity, setCapacity] = useState("5");
-  const [hours, setHours] = useState("25");
+  const [title,      setTitle]      = useState("");
+  const [field,      setField]      = useState("");
+  const [location,   setLocation]   = useState("");
+  const [type,       setType]       = useState("In-person");
+  const [capacity,   setCapacity]   = useState("5");
+  const [hours,      setHours]      = useState("25");
   const [totalHours, setTotalHours] = useState("160");
-  const [desc, setDesc] = useState("");
-  const [benefits, setBenefits] = useState("");
+  const [desc,       setDesc]       = useState("");
+  const [benefits,   setBenefits]   = useState("");
 
   const handleSave = () => {
-    if (!title.trim() || !field.trim()) {
-      alert("Title and Field are required");
-      return;
-    }
-    if (Number(totalHours) < 160) {
-      alert("Total hours must be at least 160");
-      return;
-    }
+    if (!title.trim() || !field.trim()) { alert("Title and Field are required"); return; }
+    if (Number(totalHours) < 160) { alert("Total hours must be at least 160"); return; }
     onSave({ title, field, location, type, positions: Number(capacity), hours: Number(hours), totalHours: Number(totalHours), description: desc, benefits });
   };
 
@@ -191,48 +169,42 @@ function DeleteModal({ onClose, onConfirm }) {
   );
 }
 
-// ✅ Mapping حسب Response من API
 const mapJob = (t) => ({
-  id: t._id,
-  title: t.title,
-  field: t.field,
-  type: (t.training_type || "").replace("in-person", "In-person").replace("online", "Online").replace("hybrid", "Hybrid"),
-  location: t.city || t.location || "",
-  positions: t.capacity || 0,
-  filled: t.acceptedCount || 0,
-  hours: t.weeklyHours || 0,
-  totalHours: t.totalHours || 0,
-  status: t.isFull ? "full" : t.isActive ? "active" : "hidden",
-  postedAt: t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
+  id:          t._id,
+  title:       t.title,
+  field:       t.field,
+  type:        (t.training_type || "").replace("in-person", "In-person").replace("online", "Online").replace("hybrid", "Hybrid"),
+  location:    t.city || t.location || "",
+  positions:   t.capacity     || 0,
+  filled:      t.acceptedCount || 0,
+  hours:       t.weeklyHours  || 0,
+  totalHours:  t.totalHours   || 0,
+  status:      t.isFull ? "full" : t.isActive ? "active" : "hidden",
+  postedAt:    t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
   description: t.description || "",
-  benefits: t.benefits || "",
+  benefits:    t.benefits     || "",
 });
 
 export default function ManageInternships() {
-  const [jobs, setJobs] = useState([]);
-  const [viewJob, setViewJob] = useState(null);
-  const [editJob, setEditJob] = useState(null);
-  const [deleteJob, setDeleteJob] = useState(null);
+  const [jobs,         setJobs]         = useState([]);
+  const [viewJob,      setViewJob]      = useState(null);
+  const [editJob,      setEditJob]      = useState(null);
+  const [deleteJob,    setDeleteJob]    = useState(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState("");
 
-  // ✅ استخدام trainingApi.mine()
   const loadJobs = () => {
     setLoading(true);
     setError("");
     trainingApi.mine()
-      .then(data => {
-        const trainings = data.trainings || [];
-        setJobs(trainings.map(mapJob));
-      })
+      .then(data => setJobs((data.trainings || []).map(mapJob)))
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { loadJobs(); }, []);
 
-  // ✅ استخدام trainingApi.toggle()
   const toggleHide = async (id) => {
     try {
       await trainingApi.toggle(id);
@@ -240,14 +212,14 @@ export default function ManageInternships() {
     } catch (err) { setError(err.message); }
   };
 
-  const toggleFull = (id) => {
-    // Mark Full مش موجود في API، بس بنحتفظ فيه كـ UI فقط
-    setJobs(js => js.map(j =>
-      j.id === id ? { ...j, status: j.status === "full" ? "active" : "full" } : j
-    ));
+  // ✅ toggleFull مربوط بالـ API
+  const toggleFull = async (id) => {
+    try {
+      await trainingApi.status(id, "full");
+      loadJobs();
+    } catch (err) { setError(err.message); }
   };
 
-  // ✅ استخدام trainingApi.remove()
   const confirmDelete = async () => {
     try {
       await trainingApi.remove(deleteJob.id);
@@ -256,19 +228,18 @@ export default function ManageInternships() {
     } catch (err) { setError(err.message); }
   };
 
-  // ✅ استخدام trainingApi.update()
   const saveEdit = async (updated) => {
     try {
       await trainingApi.update(updated.id, {
-        title: updated.title,
-        field: updated.field,
-        city: updated.location,
+        title:         updated.title,
+        field:         updated.field,
+        city:          updated.location,
         training_type: updated.type.toLowerCase(),
-        capacity: Number(updated.positions),
-        weeklyHours: Number(updated.hours),
-        totalHours: Number(updated.totalHours),
-        description: updated.description,
-        benefits: updated.benefits,
+        capacity:      Number(updated.positions),
+        weeklyHours:   Number(updated.hours),
+        totalHours:    Number(updated.totalHours),
+        description:   updated.description,
+        benefits:      updated.benefits,
       });
       setEditJob(null);
       setViewJob(null);
@@ -276,19 +247,18 @@ export default function ManageInternships() {
     } catch (err) { setError(err.message); }
   };
 
-  // ✅ استخدام trainingApi.create()
   const addNewJob = async (newJob) => {
     try {
       await trainingApi.create({
-        title: newJob.title,
-        field: newJob.field,
-        city: newJob.location,
+        title:         newJob.title,
+        field:         newJob.field,
+        city:          newJob.location,
         training_type: newJob.type.toLowerCase(),
-        capacity: Number(newJob.positions),
-        weeklyHours: Number(newJob.hours),
-        totalHours: Number(newJob.totalHours),
-        description: newJob.description,
-        benefits: newJob.benefits,
+        capacity:      Number(newJob.positions),
+        weeklyHours:   Number(newJob.hours),
+        totalHours:    Number(newJob.totalHours),
+        description:   newJob.description,
+        benefits:      newJob.benefits,
       });
       setAddModalOpen(false);
       loadJobs();
@@ -302,7 +272,6 @@ export default function ManageInternships() {
         <p className="mi-sub">View, edit, hide or remove posted opportunities</p>
       </div>
 
-      {/* ✅ زر إضافة فرصة جديدة */}
       <div className="mi-add-bar">
         <button className="mi-add-btn" onClick={() => setAddModalOpen(true)}>
           <FaPlus /> Add New Internship
@@ -310,7 +279,7 @@ export default function ManageInternships() {
       </div>
 
       <div className="mi-list">
-        {error && <div className="mi-empty" style={{ color: "#b00020" }}>{error}</div>}
+        {error   && <div className="mi-empty" style={{ color: "#b00020" }}>{error}</div>}
         {loading && <div className="mi-empty">Loading internships...</div>}
         {!loading && jobs.length === 0 && <div className="mi-empty">No internships posted yet.</div>}
         {jobs.map(job => (
@@ -344,9 +313,9 @@ export default function ManageInternships() {
       </div>
 
       {viewJob && !editJob && <ViewModal job={viewJob} onClose={() => setViewJob(null)} onEdit={(j) => { setEditJob(j); setViewJob(null); }} />}
-      {editJob && <EditModal job={editJob} onClose={() => setEditJob(null)} onSave={saveEdit} />}
-      {deleteJob && <DeleteModal onClose={() => setDeleteJob(null)} onConfirm={confirmDelete} />}
-      {addModalOpen && <AddModal onClose={() => setAddModalOpen(false)} onSave={addNewJob} />}
+      {editJob    && <EditModal   job={editJob}   onClose={() => setEditJob(null)}    onSave={saveEdit} />}
+      {deleteJob  && <DeleteModal                 onClose={() => setDeleteJob(null)}  onConfirm={confirmDelete} />}
+      {addModalOpen && <AddModal                  onClose={() => setAddModalOpen(false)} onSave={addNewJob} />}
     </div>
   );
 }
