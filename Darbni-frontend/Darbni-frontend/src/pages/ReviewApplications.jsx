@@ -6,7 +6,6 @@ import {
 } from "react-icons/fa";
 import { applicationApi } from "../api/client";
 
-// ================ Reject Modal ================
 function RejectModal({ isOpen, onClose, onConfirm, isProcessing }) {
   const [reason, setReason] = useState("");
   if (!isOpen) return null;
@@ -39,48 +38,36 @@ function RejectModal({ isOpen, onClose, onConfirm, isProcessing }) {
   );
 }
 
-// ================ Approve Modal (Step 1 + Step 2) ================
 function ApproveModal({ app, onClose, onApproved, isProcessing, setIsProcessing }) {
   const [step, setStep] = useState(1);
-
   if (!app) return null;
 
-  // ✅ بيانات من الـ response مباشرة
-  const studentName = `${app.studentId?.firstName || ""} ${app.studentId?.lastName || ""}`.trim();
-  const studentID = app.studentId?.studentID || "N/A";
-  const major = app.officialForm?.major || app.studentId?.major || "N/A";
-  const companyName = app.companyId?.name || "N/A";
+  const studentName   = `${app.studentId?.firstName || ""} ${app.studentId?.lastName || ""}`.trim();
+  const studentID     = app.studentId?.studentID || "N/A";
+  const major         = app.officialForm?.major || app.studentId?.major || "N/A";
+  const companyName   = app.companyId?.name || "N/A";
   const trainingTitle = app.trainingId?.title || app.trainingId?.field || "N/A";
-  const totalHours = app.trainingId?.totalHours || 160;
-  const startDate = app.trainingId?.startDate
-    ? new Date(app.trainingId.startDate).toISOString().split("T")[0]
-    : "N/A";
-  const trainerName = app.officialForm?.trainerName ||
+  const totalHours    = app.trainingId?.totalHours || 160;
+  const startDate     = app.trainingId?.startDate
+    ? new Date(app.trainingId.startDate).toISOString().split("T")[0] : "N/A";
+  const trainerName   = app.officialForm?.trainerName ||
     (app.companyId?.trainer?.firstName
-      ? `${app.companyId.trainer.firstName} ${app.companyId.trainer.lastName || ""}`.trim()
-      : "N/A");
-  const universityName = app.studentId?.university_name ||
-    app.universityId?.name || "Palestine Technical University - Kadoorie";
-  const supervisorName = localStorage.getItem("firstName")
+      ? `${app.companyId.trainer.firstName} ${app.companyId.trainer.lastName || ""}`.trim() : "N/A");
+  const universityName  = app.studentId?.university_name || app.universityId?.name || "Palestine Technical University - Kadoorie";
+  const supervisorName  = localStorage.getItem("firstName")
     ? `${localStorage.getItem("firstName")} ${localStorage.getItem("lastName") || ""}`.trim()
     : "Training Coordinator";
-  const today = new Date().toLocaleDateString("ar-EG", {
-    year: "numeric", month: "long", day: "numeric"
-  });
+  const today = new Date().toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
 
-  // ✅ بناء الـ logbook (20 يوم × 8 ساعات)
   const buildLogbook = () => {
     const rows = [];
     const start = app.trainingId?.startDate ? new Date(app.trainingId.startDate) : new Date();
     const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"];
-    let week = 1;
-    let dayCount = 0;
-    let weekDayCount = 0;
+    let week = 1, dayCount = 0, weekDayCount = 0;
     let current = new Date(start);
-
     while (dayCount < 20) {
       const dayOfWeek = current.getDay();
-      if (dayOfWeek >= 0 && dayOfWeek <= 4) { // Sun-Thu
+      if (dayOfWeek >= 0 && dayOfWeek <= 4) {
         if (weekDayCount === 5) { week++; weekDayCount = 0; }
         rows.push({
           week: weekDayCount === 0 ? `Week ${week}` : "",
@@ -88,8 +75,7 @@ function ApproveModal({ app, onClose, onApproved, isProcessing, setIsProcessing 
           date: current.toISOString().split("T")[0],
           hours: 8,
         });
-        dayCount++;
-        weekDayCount++;
+        dayCount++; weekDayCount++;
       }
       current.setDate(current.getDate() + 1);
     }
@@ -98,7 +84,6 @@ function ApproveModal({ app, onClose, onApproved, isProcessing, setIsProcessing 
 
   const logbook = buildLogbook();
 
-  // ✅ Forward to Company — يستدعي الـ API
   const handleForward = async () => {
     setIsProcessing(true);
     try {
@@ -112,15 +97,12 @@ function ApproveModal({ app, onClose, onApproved, isProcessing, setIsProcessing 
     }
   };
 
-  const handlePrint = () => window.print();
-
   return (
     <div className="ra-overlay" onClick={onClose}>
       <div className="ra-modal ra-modal-lg" onClick={e => e.stopPropagation()}
         style={{ maxWidth: 780, maxHeight: "90vh", overflowY: "auto" }}>
         <button className="ra-modal-close" onClick={onClose}><FaTimes /></button>
 
-        {/* Step indicator */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
           <FaPaperPlane style={{ color: "#6c47ff" }} />
           <div>
@@ -129,81 +111,51 @@ function ApproveModal({ app, onClose, onApproved, isProcessing, setIsProcessing 
             </h3>
             <p style={{ fontSize: 12, color: "#888", margin: 0 }}>
               {step === 1
-                ? "Step 1 of 2 — Official Arabic letter to the company. Edit fields directly inside the letter."
-                : "Step 2 of 2 — Evaluation form. Company-only fields appear as editable inputs."}
+                ? "Step 1 of 2 — Official Arabic letter to the company."
+                : "Step 2 of 2 — Evaluation form."}
             </p>
           </div>
         </div>
 
-        {/* ===== STEP 1 — الخطاب الرسمي ===== */}
         {step === 1 && (
           <div id="print-area">
-            <div style={{
-              border: "1px solid #e0e0e0", borderRadius: 8, padding: 32,
-              background: "#fafafa", fontFamily: "Arial, sans-serif", direction: "rtl"
-            }}>
-              {/* شعار الجامعة */}
+            <div style={{ border: "1px solid #e0e0e0", borderRadius: 8, padding: 32, background: "#fafafa", fontFamily: "Arial, sans-serif", direction: "rtl" }}>
               <div style={{ textAlign: "center", marginBottom: 24 }}>
-                <img src="/ptu-banner.png" alt="University Banner"
-                  style={{ maxWidth: "100%", height: "auto" }}
-                  onError={e => { e.target.style.display = "none"; }} />
+                <img src="/ptu-banner.png" alt="University Banner" style={{ maxWidth: "100%", height: "auto" }} onError={e => { e.target.style.display = "none"; }} />
               </div>
-
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
                 <span>التاريخ :</span>
                 <span style={{ fontWeight: 600 }}>{today}</span>
               </div>
-
-              <div style={{ marginBottom: 12 }}>
-                حضرة السادة : <strong>{companyName}</strong>. المحترمين
-              </div>
-
+              <div style={{ marginBottom: 12 }}>حضرة السادة : <strong>{companyName}</strong>. المحترمين</div>
               <div style={{ marginBottom: 12 }}>
                 <strong>الموضوع : التدريب الميداني</strong><br />
                 <strong>تخصص : {major}</strong>
               </div>
-
               <div style={{ marginBottom: 16 }}>تحية طيبة وبعد..</div>
-
               <p style={{ lineHeight: 2, marginBottom: 12 }}>
                 أرجو من حضرتكم التكرم بالسماح للطالب/ة <strong>{studentName}</strong> بالتدرب في مؤسستكم الموقرة
-                أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب ({totalHours}) ساعة تدريبية حيث يكون دوام الطالب
-                في مؤسستكم مثل دوام العاملين فيها ولا يحق له التغيب دون إذن رسمي، وسيقدم الطالب المتدرب تقريراً
-                عما اكتسبه من مهارات للمحاضر المسؤول عنه في الجامعة في نهاية هذه الفترة.
+                أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب ({totalHours}) ساعة تدريبية.
               </p>
               <p style={{ lineHeight: 2, marginBottom: 20 }}>
-                يرجى من المشرف المباشر عن التدريب لديكم تعبئة نموذج التقييم المرفق ومتابعة حضور الطالب
-                المتدرب من خلال نموذج الحضور والغياب المرفق وذلك بعد انتهاء فترة التدريب.
+                يرجى من المشرف المباشر عن التدريب لديكم تعبئة نموذج التقييم المرفق بعد انتهاء فترة التدريب.
               </p>
-
               <div style={{ marginBottom: 20 }}>وتفضلوا بقبول فائق الاحترام..</div>
-
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <div>
-                  مسؤول التدريب : <strong>{supervisorName}</strong>
-                  <div style={{ fontSize: 13, color: "#666" }}>{universityName}</div>
-                </div>
+              <div>
+                مسؤول التدريب : <strong>{supervisorName}</strong>
+                <div style={{ fontSize: 13, color: "#666" }}>{universityName}</div>
               </div>
             </div>
           </div>
         )}
 
-        {/* ===== STEP 2 — نموذج التقييم ===== */}
         {step === 2 && (
           <div id="print-area">
-            <div style={{
-              border: "1px solid #e0e0e0", borderRadius: 8, padding: 28,
-              background: "#fafafa", fontFamily: "Arial, sans-serif"
-            }}>
+            <div style={{ border: "1px solid #e0e0e0", borderRadius: 8, padding: 28, background: "#fafafa", fontFamily: "Arial, sans-serif" }}>
               <div style={{ textAlign: "center", marginBottom: 20 }}>
-                <img src="/ptu-banner.png" alt="University Banner"
-                  style={{ maxWidth: "100%", height: "auto" }}
-                  onError={e => { e.target.style.display = "none"; }} />
+                <img src="/ptu-banner.png" alt="University Banner" style={{ maxWidth: "100%", height: "auto" }} onError={e => { e.target.style.display = "none"; }} />
                 <div style={{ fontSize: 16, fontWeight: 700, marginTop: 12 }}>Final Training Evaluation Form</div>
-                <div style={{ fontSize: 12, color: "#888" }}>Field Training Department — to be completed by the company at the end of training</div>
               </div>
-
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Report Information</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
                 {[
                   ["STUDENT NAME", studentName],
@@ -211,139 +163,62 @@ function ApproveModal({ app, onClose, onApproved, isProcessing, setIsProcessing 
                   ["UNIVERSITY", universityName],
                   ["TRAINING TITLE", trainingTitle],
                   ["COMPANY", companyName],
-                  ["TRAINING SUPERVISOR (COMPANY)", trainerName],
+                  ["TRAINING SUPERVISOR", trainerName],
                   ["START DATE", startDate],
                   ["TARGET HOURS", `${totalHours} hours`],
                   ["TOTAL HOURS COMPLETED", "(to be filled by company)"],
                   ["TOTAL DAYS", "(to be filled by company)"],
                 ].map(([label, val], i) => (
-                  <div key={i} style={{
-                    background: "#fff", border: "1px solid #e8e8e8",
-                    borderRadius: 6, padding: "10px 14px"
-                  }}>
+                  <div key={i} style={{ background: "#fff", border: "1px solid #e8e8e8", borderRadius: 6, padding: "10px 14px" }}>
                     <div style={{ fontSize: 10, color: "#999", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
-                    <div style={{ fontSize: 13, color: val.startsWith("(") ? "#bbb" : "#1a1729", fontStyle: val.startsWith("(") ? "italic" : "normal" }}>
-                      {val}
-                    </div>
+                    <div style={{ fontSize: 13, color: val.startsWith("(") ? "#bbb" : "#1a1729", fontStyle: val.startsWith("(") ? "italic" : "normal" }}>{val}</div>
                   </div>
                 ))}
-              </div>
-
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
-                Weekly Training Logbook ({logbook.length} working days · 5 days / week · 8h / day)
               </div>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 8 }}>
                 <thead>
                   <tr style={{ background: "#f5f4f1" }}>
                     {["Week", "Day", "Date", "Tasks Completed", "Hours", "Company Rating", "Feedback"].map(h => (
-                      <th key={h} style={{ padding: "8px 6px", textAlign: "left", borderBottom: "1px solid #e0e0e0", fontWeight: 600 }}>{h}</th>
+                      <th key={h} style={{ padding: "8px 6px", textAlign: "left", borderBottom: "1px solid #e0e0e0" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {logbook.map((row, i) => (
                     <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                      <td style={{ padding: "6px", fontWeight: row.week ? 600 : 400, color: "#6c47ff" }}>{row.week}</td>
+                      <td style={{ padding: "6px", color: "#6c47ff" }}>{row.week}</td>
                       <td style={{ padding: "6px", color: "#555" }}>{row.day}</td>
                       <td style={{ padding: "6px", color: "#555" }}>{row.date}</td>
-                      <td style={{ padding: "6px" }}>
-                        <div style={{
-                          minHeight: 28, border: "1px solid #e0e0e0",
-                          borderRadius: 4, padding: "4px 6px",
-                          fontSize: 11, color: "#bbb", fontStyle: "italic"
-                        }}>(student daily entry)</div>
-                      </td>
-                      <td style={{ padding: "6px" }}>
-                        <div style={{
-                          width: 40, border: "1px solid #e0e0e0",
-                          borderRadius: 4, padding: "4px 6px",
-                          textAlign: "center", fontSize: 12
-                        }}>{row.hours}</div>
-                      </td>
-                      <td style={{ padding: "6px" }}>
-                        <div style={{ width: 50, height: 28, border: "1px solid #e0e0e0", borderRadius: 4 }} />
-                      </td>
-                      <td style={{ padding: "6px" }}>
-                        <div style={{ minWidth: 100, height: 28, border: "1px solid #e0e0e0", borderRadius: 4 }} />
-                      </td>
+                      <td style={{ padding: "6px" }}><div style={{ minHeight: 28, border: "1px solid #e0e0e0", borderRadius: 4, padding: "4px 6px", fontSize: 11, color: "#bbb", fontStyle: "italic" }}>(student entry)</div></td>
+                      <td style={{ padding: "6px" }}><div style={{ width: 40, border: "1px solid #e0e0e0", borderRadius: 4, padding: "4px 6px", textAlign: "center" }}>{row.hours}</div></td>
+                      <td style={{ padding: "6px" }}><div style={{ width: 50, height: 28, border: "1px solid #e0e0e0", borderRadius: 4 }} /></td>
+                      <td style={{ padding: "6px" }}><div style={{ minWidth: 100, height: 28, border: "1px solid #e0e0e0", borderRadius: 4 }} /></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 20 }}>
-                Sunday – Thursday only. Total hours auto-distributed: {totalHours} / {totalHours} hours.
-              </div>
-
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Final Evaluation</div>
-              {[
-                "COMPANY'S FINAL EVALUATION OF THE STUDENT",
-                "COMMENTS ON STUDENT PERFORMANCE",
-                "OTHER COMMENTS"
-              ].map((label, i) => (
-                <div key={i} style={{
-                  border: "1px solid #e0e0e0", borderRadius: 6,
-                  padding: "12px 14px", marginBottom: 12, minHeight: 80
-                }}>
-                  <div style={{ fontSize: 10, color: "#999", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
-                  <div style={{ fontSize: 12, color: "#bbb", fontStyle: "italic" }}>(to be filled by company)</div>
-                </div>
-              ))}
-              <div style={{ textAlign: "center", fontSize: 12, color: "#888", marginTop: 8 }}>
-                These evaluation fields are left blank — the company fills them when sending the final report back.
-              </div>
             </div>
           </div>
         )}
 
-        {/* Footer buttons */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
           <button className="ra-btn-close" onClick={onClose}>Cancel</button>
           <div style={{ display: "flex", gap: 10 }}>
             {step === 2 && (
-              <button
-                onClick={() => setStep(1)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 6,
-                  padding: "10px 20px", borderRadius: 8, border: "1px solid #e0e0e0",
-                  background: "#fff", cursor: "pointer", fontSize: 13
-                }}
-              >
+              <button onClick={() => setStep(1)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 8, border: "1px solid #e0e0e0", background: "#fff", cursor: "pointer", fontSize: 13 }}>
                 <FaArrowLeft size={12} /> Back
               </button>
             )}
-            <button
-              onClick={handlePrint}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "10px 20px", borderRadius: 8, border: "1px solid #e0e0e0",
-                background: "#fff", cursor: "pointer", fontSize: 13
-              }}
-            >
+            <button onClick={() => window.print()} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 8, border: "1px solid #e0e0e0", background: "#fff", cursor: "pointer", fontSize: 13 }}>
               <FaPrint size={12} /> Print
             </button>
             {step === 1 && (
-              <button
-                onClick={() => setStep(2)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 6,
-                  padding: "10px 20px", borderRadius: 8, border: "none",
-                  background: "#6c47ff", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600
-                }}
-              >
+              <button onClick={() => setStep(2)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 8, border: "none", background: "#6c47ff", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
                 Next <FaArrowRight size={12} />
               </button>
             )}
             {step === 2 && (
-              <button
-                onClick={handleForward}
-                disabled={isProcessing}
-                style={{
-                  display: "flex", alignItems: "center", gap: 6,
-                  padding: "10px 20px", borderRadius: 8, border: "none",
-                  background: "#6c47ff", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600,
-                  opacity: isProcessing ? 0.7 : 1
-                }}
-              >
+              <button onClick={handleForward} disabled={isProcessing} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 8, border: "none", background: "#6c47ff", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: isProcessing ? 0.7 : 1 }}>
                 {isProcessing ? <FaSpinner className="spinner" /> : <FaPaperPlane size={12} />}
                 Forward to Company
               </button>
@@ -355,12 +230,10 @@ function ApproveModal({ app, onClose, onApproved, isProcessing, setIsProcessing 
   );
 }
 
-// ================ View Details Modal ================
 function ApplicationModal({ app, onClose }) {
   if (!app) return null;
-
   const firstName = app.studentId?.firstName || "";
-  const lastName = app.studentId?.lastName || "";
+  const lastName  = app.studentId?.lastName  || "";
   const studentFullName = `${firstName} ${lastName}`.trim();
   const initials = studentFullName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
@@ -368,13 +241,12 @@ function ApplicationModal({ app, onClose }) {
     if (!deadline) return "No deadline set";
     const remaining = new Date(deadline) - new Date();
     if (remaining <= 0) return "Expired";
-    const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+    const days  = Math.floor(remaining / (1000 * 60 * 60 * 24));
     const hours = Math.floor((remaining % 86400000) / (1000 * 60 * 60));
     if (days > 0) return `${days}d ${hours}h remaining`;
     return `${hours}h remaining`;
   };
 
-  const timeRemaining = getTimeRemaining(app.studentDeadline);
   const isUrgent = app.studentDeadline && (new Date(app.studentDeadline) - new Date()) < 86400000;
 
   return (
@@ -395,8 +267,16 @@ function ApplicationModal({ app, onClose }) {
           <div className={`ra-modal-warning ${isUrgent ? "urgent" : ""}`}>
             <FaClock />
             <span>
-              <strong>Deadline: {timeRemaining}</strong> — University must act within 3 days or the application is auto-cancelled.
+              <strong>Deadline: {getTimeRemaining(app.studentDeadline)}</strong> — University must act within 3 days.
             </span>
+          </div>
+        )}
+
+        {/* ✅ لو الطلب auto_cancelled نعرض رسالة ونمنع الـ approve/reject */}
+        {app.status === "auto_cancelled" && (
+          <div className="ra-modal-warning urgent">
+            <FaExclamationTriangle />
+            <span><strong>This application has been auto-cancelled</strong> — the deadline has expired.</span>
           </div>
         )}
 
@@ -421,7 +301,7 @@ function ApplicationModal({ app, onClose }) {
           <div className="ra-grid-item"><label>Academic Year</label><div>{app.officialForm?.academicYear || "N/A"}</div></div>
           <div className="ra-grid-item"><label>Major</label><div>{app.officialForm?.major || app.studentId?.major || "N/A"}</div></div>
           <div className="ra-grid-item"><label>Student ID</label><div>{app.studentId?.studentID || "N/A"}</div></div>
-          <div className="ra-grid-item"><label>Credit Hours Completed</label><div>{app.officialForm?.completedCredits || app.studentId?.completedCreditHours || "N/A"}h</div></div>
+          <div className="ra-grid-item"><label>Credit Hours</label><div>{app.officialForm?.completedCredits || app.studentId?.completedCreditHours || "N/A"}</div></div>
           <div className="ra-grid-item"><label>Student Mobile</label><div>{app.officialForm?.studentPhone || app.studentId?.phone || "N/A"}</div></div>
           <div className="ra-grid-item"><label>Submission Date</label><div>{app.submittedToUniversityAt ? new Date(app.submittedToUniversityAt).toLocaleDateString() : "N/A"}</div></div>
           <div className="ra-grid-item"><label>Company Address</label><div>{app.officialForm?.companyAddress || "N/A"}</div></div>
@@ -437,9 +317,7 @@ function ApplicationModal({ app, onClose }) {
           <div className="ra-workflow-step">
             <div className="ra-step-icon ra-step-success"><FaBuilding /></div>
             <div className="ra-step-text">Company Approval</div>
-            <div className="ra-step-badge ra-badge-success">
-              <FaCheck /> {app.companyApprovedAt ? "Approved" : "Pending"}
-            </div>
+            <div className="ra-step-badge ra-badge-success"><FaCheck /> Approved</div>
           </div>
           <div className="ra-workflow-line"></div>
           <div className="ra-workflow-step">
@@ -448,8 +326,7 @@ function ApplicationModal({ app, onClose }) {
             </div>
             <div className="ra-step-text">University Review</div>
             <div className={`ra-step-badge ${app.status === "pending_university" ? "ra-badge-pending" : "ra-badge-success"}`}>
-              {app.status === "pending_university" ? <FaClock /> : <FaCheck />}
-              {app.status === "pending_university" ? "Pending" : "Approved"}
+              {app.status === "pending_university" ? <><FaClock /> Pending</> : <><FaCheck /> Done</>}
             </div>
           </div>
         </div>
@@ -462,23 +339,36 @@ function ApplicationModal({ app, onClose }) {
   );
 }
 
-// ================ Main Component ================
 export default function ReviewApplications() {
-  const [filter, setFilter] = useState("pending_university");
+  const [filter,       setFilter]       = useState("pending_university");
   const [applications, setApplications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedApp, setSelectedApp] = useState(null);
-  const [approveApp, setApproveApp] = useState(null); // ✅ للـ approve modal
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState(null);
+  const [selectedApp,  setSelectedApp]  = useState(null);
+  const [approveApp,   setApproveApp]   = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [rejectAppId, setRejectAppId] = useState(null);
+  const [rejectAppId,  setRejectAppId]  = useState(null);
 
   const fetchApplications = async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await applicationApi.university();
-      setApplications(response.applications || []);
+      const now = new Date();
+
+      // ✅ لبنى: نحول company_approved المنتهية لـ auto_cancelled محلياً
+      const apps = (response.applications || []).map(app => {
+        if (
+          app.status === "company_approved" &&
+          app.studentDeadline &&
+          new Date(app.studentDeadline) < now
+        ) {
+          return { ...app, status: "auto_cancelled" };
+        }
+        return app;
+      });
+
+      setApplications(apps);
     } catch (err) {
       setError(err.message || "Failed to load applications");
     } finally {
@@ -505,10 +395,10 @@ export default function ReviewApplications() {
   };
 
   const tabs = [
-    { key: "pending_university", label: "Pending", icon: FaClock },
+    { key: "pending_university", label: "Pending",         icon: FaClock },
     { key: "university_approved", label: "Sent to Company", icon: FaPaperPlane },
-    { key: "university_rejected", label: "Rejected", icon: FaTimes },
-    { key: "auto_cancelled", label: "Cancelled", icon: FaExclamationTriangle },
+    { key: "university_rejected", label: "Rejected",        icon: FaTimes },
+    { key: "auto_cancelled",      label: "Cancelled",       icon: FaExclamationTriangle },
   ];
 
   if (loading) return (
@@ -545,14 +435,12 @@ export default function ReviewApplications() {
 
       <div className="ra-list">
         {filteredApps.length === 0 && (
-          <div className="ra-empty">
-            No applications found in "{tabs.find(t => t.key === filter)?.label}" category.
-          </div>
+          <div className="ra-empty">No applications in "{tabs.find(t => t.key === filter)?.label}".</div>
         )}
 
         {filteredApps.map(app => {
           const firstName = app.studentId?.firstName || "";
-          const lastName = app.studentId?.lastName || "";
+          const lastName  = app.studentId?.lastName  || "";
           const studentFullName = `${firstName} ${lastName}`.trim();
           const initials = studentFullName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
@@ -560,7 +448,7 @@ export default function ReviewApplications() {
             if (!deadline) return null;
             const remaining = new Date(deadline) - new Date();
             if (remaining <= 0) return "Expired";
-            const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+            const days  = Math.floor(remaining / (1000 * 60 * 60 * 24));
             const hours = Math.floor((remaining % 86400000) / (1000 * 60 * 60));
             if (days > 0) return `${days}d ${hours}h remaining`;
             return `${hours}h remaining`;
@@ -568,6 +456,9 @@ export default function ReviewApplications() {
 
           const timeRemaining = getTimeRemaining(app.studentDeadline);
           const isUrgent = app.studentDeadline && (new Date(app.studentDeadline) - new Date()) < 86400000;
+
+          // ✅ الطلب المنتهي — نعرضه في cancelled بس بدون أزرار
+          const isExpired = app.status === "auto_cancelled";
 
           return (
             <div key={app._id} className="ra-card" onClick={() => setSelectedApp(app)} style={{ cursor: "pointer" }}>
@@ -593,20 +484,28 @@ export default function ReviewApplications() {
                     <FaClock /> {timeRemaining}
                   </div>
                 )}
+
+                {/* ✅ Expired badge للطلبات المنتهية */}
+                {isExpired && (
+                  <div className="ra-timer urgent">
+                    <FaExclamationTriangle /> Expired
+                  </div>
+                )}
+
                 <div className="ra-card-actions">
-                  {app.status === "pending_university" && (
+                  {/* ✅ أزرار Approve/Reject بس للـ pending_university وليس المنتهية */}
+                  {app.status === "pending_university" && !isExpired && (
                     <>
-                      {/* ✅ Approve يفتح الـ modal بدل ما يستدعي API مباشرة */}
                       <button
                         className="ra-btn-solid ra-solid-approve"
-                        onClick={(e) => { e.stopPropagation(); setApproveApp(app); }}
+                        onClick={e => { e.stopPropagation(); setApproveApp(app); }}
                         disabled={isProcessing}
                       >
                         <FaCheck /> Approve
                       </button>
                       <button
                         className="ra-btn-solid ra-solid-reject"
-                        onClick={(e) => { e.stopPropagation(); setRejectAppId(app._id); }}
+                        onClick={e => { e.stopPropagation(); setRejectAppId(app._id); }}
                         disabled={isProcessing}
                       >
                         <FaTimes /> Reject
@@ -615,7 +514,7 @@ export default function ReviewApplications() {
                   )}
                   <button
                     className="ra-btn-view"
-                    onClick={(e) => { e.stopPropagation(); setSelectedApp(app); }}
+                    onClick={e => { e.stopPropagation(); setSelectedApp(app); }}
                   >
                     <FaEye /> View Details
                   </button>
@@ -626,12 +525,8 @@ export default function ReviewApplications() {
         })}
       </div>
 
-      {/* View Details Modal */}
-      {selectedApp && (
-        <ApplicationModal app={selectedApp} onClose={() => setSelectedApp(null)} />
-      )}
+      {selectedApp && <ApplicationModal app={selectedApp} onClose={() => setSelectedApp(null)} />}
 
-      {/* ✅ Approve Modal — Step 1 + Step 2 */}
       {approveApp && (
         <ApproveModal
           app={approveApp}
@@ -642,11 +537,10 @@ export default function ReviewApplications() {
         />
       )}
 
-      {/* Reject Modal */}
       <RejectModal
         isOpen={!!rejectAppId}
         onClose={() => setRejectAppId(null)}
-        onConfirm={(reason) => { if (rejectAppId) handleReject(rejectAppId, reason); }}
+        onConfirm={reason => { if (rejectAppId) handleReject(rejectAppId, reason); }}
         isProcessing={isProcessing}
       />
     </div>
