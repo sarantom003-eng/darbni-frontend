@@ -3,8 +3,9 @@ import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   FaChevronDown, FaUserEdit, FaKey, FaSignOutAlt, FaBell,
   FaTh, FaUser, FaPaperPlane, FaBriefcase,
-  FaUsers, FaUniversity, FaChartBar, FaFileAlt
+  FaUsers, FaUniversity, FaChartBar, FaFileAlt, FaSpinner
 } from "react-icons/fa";
+import { notificationApi, profileApi } from "../api/client";
 
 const NAV = [
   { label: "Dashboard",           to: "/company",             icon: <FaTh /> },
@@ -17,12 +18,6 @@ const NAV = [
   { label: "Completion Reports",  to: "/company/reports",     icon: <FaFileAlt /> },
 ];
 
-const MOCK_NOTIFS = [
-  { id: 1, title: "New Application",     msg: "Ahmad Nasser applied for Web Development internship.", time: "2 hours ago", read: false },
-  { id: 2, title: "University Approved", msg: "PTUK approved Sara Tomeh's training request.",         time: "5 hours ago", read: false },
-  { id: 3, title: "Report Submitted",    msg: "Rami Khalil submitted his weekly progress report.",    time: "1 day ago",   read: true  },
-];
-
 function ChangePasswordModal({ onClose }) {
   const [cur,     setCur]     = useState("");
   const [nw,      setNw]      = useState("");
@@ -32,6 +27,7 @@ function ChangePasswordModal({ onClose }) {
   const [showCon, setShowCon] = useState(false);
   const [err,     setErr]     = useState("");
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const canSubmit =
     cur.trim().length >= 6 &&
@@ -40,14 +36,23 @@ function ChangePasswordModal({ onClose }) {
     nw === confirm &&
     nw !== cur;
 
-  const handleUpdate = () => {
+  // ✅ مربوط بالـ API
+  const handleUpdate = async () => {
     if (!cur || !nw || !confirm) { setErr("Please fill in all fields."); return; }
-    if (nw.length < 6)           { setErr("New password must be at least 6 characters."); return; }
-    if (nw === cur)              { setErr("New password must be different from current."); return; }
-    if (nw !== confirm)          { setErr("Passwords do not match."); return; }
+    if (nw.length < 6) { setErr("New password must be at least 6 characters."); return; }
+    if (nw === cur) { setErr("New password must be different from current."); return; }
+    if (nw !== confirm) { setErr("Passwords do not match."); return; }
     setErr("");
-    setSuccess(true);
-    setTimeout(onClose, 1500);
+    setLoading(true);
+    try {
+      await profileApi.changePassword({ currentPassword: cur, newPassword: nw });
+      setSuccess(true);
+      setTimeout(onClose, 1500);
+    } catch (e) {
+      setErr(e.message || "Failed to update password");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const EyeIcon = ({ show }) => show
@@ -121,11 +126,11 @@ function ChangePasswordModal({ onClose }) {
         </div>
 
         <div className="modal-actions" style={{ marginTop: 20 }}>
-          <button className="modal-cancel" onClick={onClose}>Cancel</button>
+          <button className="modal-cancel" onClick={onClose} disabled={loading}>Cancel</button>
           <button className="modal-submit" onClick={handleUpdate}
-            disabled={!canSubmit}
-            style={{ opacity: canSubmit ? 1 : 0.5, cursor: canSubmit ? "pointer" : "not-allowed" }}>
-            Update Password
+            disabled={!canSubmit || loading}
+            style={{ opacity: canSubmit && !loading ? 1 : 0.5, cursor: canSubmit && !loading ? "pointer" : "not-allowed" }}>
+            {loading ? <FaSpinner className="spinner" /> : "Update Password"}
           </button>
         </div>
       </div>
@@ -142,20 +147,57 @@ export default function CompanyLayout() {
   const [showDrop,    setShowDrop]    = useState(false);
   const [showNotif,   setShowNotif]   = useState(false);
   const [showPwModal, setShowPwModal] = useState(false);
-  const [notifs,      setNotifs]      = useState(MOCK_NOTIFS);
 
-  const unread = notifs.filter(n => !n.read).length;
+  // ✅ notifications من الـ API
+  const [notifs, setNotifs] = useState([]);
+  const [unread, setUnread] = useState(0);
+
+  const email     = localStorage.getItem("email")     || "";
+  const firstName = localStorage.getItem("name")      || localStorage.getItem("firstName") || "Company";
+
+  // ✅ جلب الإشعارات
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      try {
+        const [listRes, countRes] = await Promise.allSettled([
+          notificationApi.list(),
+          notificationApi.unreadCount(),
+        ]);
+        if (listRes.status === "fulfilled")  setNotifs(listRes.value.notifications || []);
+        if (countRes.status === "fulfilled") setUnread(countRes.value.unreadCount  || 0);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ✅ mark all read
+  const markAllRead = async () => {
+    try {
+      await notificationApi.markAllRead();
+      setNotifs(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnread(0);
+    } catch (err) { console.error(err); }
+  };
+
+  // ✅ mark one read
+  const markRead = async (id) => {
+    try {
+      await notificationApi.markRead(id);
+      setNotifs(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+      setUnread(prev => Math.max(0, prev - 1));
+    } catch (err) { console.error(err); }
+  };
 
   const isActive = (to) => {
     if (to === "/company") return location.pathname === "/company";
     return location.pathname.startsWith(to);
   };
 
-  const email = localStorage.getItem("email") || "company@email.com";
   const handleLogout = () => { localStorage.clear(); navigate("/login"); };
-  const markAllRead  = () => setNotifs(ns => ns.map(n => ({ ...n, read: true })));
-  const markRead     = (id) => setNotifs(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
-  const deleteNotif  = (id) => setNotifs(ns => ns.filter(n => n.id !== id));
 
   useEffect(() => {
     const handler = (e) => {
@@ -190,6 +232,8 @@ export default function CompanyLayout() {
 
       <div className="main-content">
         <div className="topbar">
+
+          {/* ✅ Notifications من الـ API */}
           <div style={{ position: "relative" }} ref={notifRef}>
             <div className="notif" style={{ cursor: "pointer" }}
               onClick={() => { setShowNotif(!showNotif); setShowDrop(false); }}>
@@ -206,35 +250,40 @@ export default function CompanyLayout() {
                   <button className="notif-read-all" onClick={markAllRead}>✓ Read All</button>
                 </div>
                 <div className="notif-list">
+                  {notifs.length === 0 && (
+                    <div style={{ padding: 20, textAlign: "center", color: "#aaa" }}>No notifications</div>
+                  )}
                   {notifs.map(n => (
-                    <div key={n.id} className={`notif-item${n.read ? "" : " unread"}`}>
-                      <div className="notif-item-title">{n.title}</div>
-                      <div className="notif-item-msg">{n.msg}</div>
-                      <div className="notif-item-time">{n.time}</div>
-                      <div className="notif-item-actions">
-                        {!n.read && <button onClick={() => markRead(n.id)}>✓ Mark as Read</button>}
-                        <button onClick={() => deleteNotif(n.id)}>🗑 Delete</button>
+                    <div key={n._id} className={`notif-item${n.isRead ? "" : " unread"}`}>
+                      <div className="notif-item-title">{n.type || "Notification"}</div>
+                      <div className="notif-item-msg">{n.message}</div>
+                      <div className="notif-item-time">
+                        {n.createdAt ? new Date(n.createdAt).toLocaleDateString() : ""}
                       </div>
+                      {!n.isRead && (
+                        <div className="notif-item-actions">
+                          <button onClick={() => markRead(n._id)}>✓ Mark as Read</button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-                <div className="notif-view-all" onClick={() => { navigate("/company/notifications"); setShowNotif(false); }}>
-                  View All Notifications
-                </div>
+                <div className="notif-view-all" onClick={() => setShowNotif(false)}>Close</div>
               </div>
             )}
           </div>
 
+          {/* Profile Dropdown */}
           <div style={{ position: "relative" }} ref={dropRef}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}
               onClick={() => { setShowDrop(!showDrop); setShowNotif(false); }}>
-              <div className="profile-circle">C</div>
+              <div className="profile-circle">{firstName[0]?.toUpperCase() || "C"}</div>
               <FaChevronDown style={{ fontSize: 11, color: "#888" }} />
             </div>
             {showDrop && (
               <div className="profile-dropdown">
                 <div className="profile-drop-info">
-                  <div className="profile-drop-name">Company Account</div>
+                  <div className="profile-drop-name">{firstName}</div>
                   <div className="profile-drop-email">{email}</div>
                 </div>
                 <div className="profile-drop-item" onClick={() => { navigate("/company/profile"); setShowDrop(false); }}>
