@@ -21,10 +21,8 @@ function AboutPage() {
         <div className="about-mission-text">
           <h2>Our Mission</h2>
           <p>
-            Darbni (درابني) means "train me" in Arabic. Our platform connects
-            Palestinian university students with technology companies, facilitating
-            meaningful internship experiences that prepare students for their
-            professional careers.
+            Our platform connects Palestinian university students with technology companies, facilitating meaningful internship experiences that prepare
+students for their professional careers.
           </p>
           <p>
             We believe every student deserves access to quality training
