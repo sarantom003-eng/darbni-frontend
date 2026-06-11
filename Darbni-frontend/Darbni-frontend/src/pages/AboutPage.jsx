@@ -21,8 +21,8 @@ function AboutPage() {
         <div className="about-mission-text">
           <h2>Our Mission</h2>
           <p>
-            Our platform connects Palestinian university students with technology companies, facilitating meaningful internship experiences that prepare
-students for their professional careers.
+            Our platform connects Palestinian university students with technology companies,
+            facilitating meaningful internship experiences that prepare students for their professional careers.
           </p>
           <p>
             We believe every student deserves access to quality training
@@ -30,35 +30,14 @@ students for their professional careers.
             innovative ideas.
           </p>
           <ul className="about-checklist">
-            <li><span>✓</span> Connecting students with 150+ partner companies</li>
+            <li><span>✓</span> Connecting students with local technology companies</li>
             <li><span>✓</span> Streamlined application and approval process</li>
             <li><span>✓</span> Real-time progress tracking and evaluation</li>
             <li><span>✓</span> University supervisor oversight and support</li>
           </ul>
         </div>
 
-        <div className="about-stats">
-          <div className="stat-card">
-            <span className="stat-icon">🎓</span>
-            <span className="stat-number">2,500+</span>
-            <span className="stat-label">Students Trained</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-icon">🏢</span>
-            <span className="stat-number">150+</span>
-            <span className="stat-label">Partner Companies</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-icon">👥</span>
-            <span className="stat-number">50+</span>
-            <span className="stat-label">University Supervisors</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-icon">🏆</span>
-            <span className="stat-number">95%</span>
-            <span className="stat-label">Success Rate</span>
-          </div>
-        </div>
+      
       </div>
 
       <div className="about-values">
