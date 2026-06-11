@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   FaCheckCircle, FaExclamationCircle, FaChevronRight,
-  FaPlus, FaFileAlt, FaStar, FaPrint
+  FaPlus, FaFileAlt, FaStar
 } from "react-icons/fa";
 import { api } from "../api/client";
 
@@ -17,6 +17,22 @@ const mapIntern = (app, type) => {
   const lastName  = student.lastName  || "";
   const fullName  = `${firstName} ${lastName}`.trim() || "Unknown Student";
 
+  // ✅ supervisor من officialLetter أو trainer الشركة
+  const supervisorName =
+    app.officialLetter?.supervisorName ||
+    (app.companyId?.trainer?.firstName
+      ? `${app.companyId.trainer.firstName} ${app.companyId.trainer.lastName || ""}`.trim()
+      : "TBD");
+
+  // ✅ تاريخ الخطاب = وقت ما المشرف أرسله
+  const letterDate = app.submittedToUniversityAt
+    ? new Date(app.submittedToUniversityAt).toLocaleDateString("en-US", {
+        month: "long", day: "numeric", year: "numeric"
+      })
+    : new Date().toLocaleDateString("en-US", {
+        month: "long", day: "numeric", year: "numeric"
+      });
+
   return {
     id:          app._id,
     name:        fullName,
@@ -27,7 +43,8 @@ const mapIntern = (app, type) => {
     internship:  training.title || "Unknown Training",
     department:  student.major  || "N/A",
     company:     localStorage.getItem("name") || "Your Company",
-    supervisor:  "TBD",
+    supervisor:  supervisorName,
+    letterDate,
     startDate:   training.startDate ? new Date(training.startDate).toLocaleDateString() : "TBD",
     endDate:     "TBD",
     status:      app.status,
@@ -76,8 +93,6 @@ function ReportModal({ intern, onClose }) {
   const [otherComments,  setOtherComments]  = useState("");
   const [sending,        setSending]        = useState(false);
 
-  const letterDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-
   const handleSendReport = async () => {
     if (rating === 0) { alert("Please select a final rating"); return; }
     setSending(true);
@@ -119,7 +134,8 @@ function ReportModal({ intern, onClose }) {
             <div className="rpt-letter-header">
               <img src="/ptu-banner.png" alt="University" className="rpt-letter-banner" />
             </div>
-            <div className="rpt-letter-date">{letterDate} &emsp; التاريخ :</div>
+            {/* ✅ التاريخ من الـ API */}
+            <div className="rpt-letter-date">{intern.letterDate} &emsp; التاريخ :</div>
             <div className="rpt-letter-to">حضرة السادة : <strong>{intern.company}</strong>. المحترمين</div>
             <div className="rpt-letter-subject">
               <strong>الموضوع : التدريب الميداني</strong><br />
@@ -131,6 +147,7 @@ function ReportModal({ intern, onClose }) {
             </p>
             <div className="rpt-letter-closing">وتفضلوا بقبول فائق الاحترام..</div>
             <div className="rpt-letter-signature">
+              {/* ✅ supervisor من الـ API */}
               <div>مسؤول التدريب : <strong>{intern.supervisor}</strong></div>
               <div className="rpt-letter-sig-uni">{intern.university}</div>
             </div>
@@ -192,9 +209,9 @@ function ReportModal({ intern, onClose }) {
           </div>
         </div>
 
+        {/* ✅ حذفنا Print */}
         <div className="rpt-footer">
           <button className="rpt-btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="rpt-btn-print" onClick={() => window.print()}><FaPrint size={12} /> Print</button>
           <button className="rpt-btn-send" onClick={handleSendReport} disabled={sending}>
             {sending ? "Sending..." : "✓ Save & Send to University"}
           </button>
@@ -217,7 +234,6 @@ function CreateReportModal({ onClose }) {
   const [hoursCompleted, setHoursCompleted] = useState("160");
   const [sending,        setSending]        = useState(false);
 
-  // ✅ جلب بيانات الطلب والـ logs بـ applicationId
   const fetchApplicationData = async () => {
     if (!applicationId.trim()) return;
     setLoadingApp(true);
@@ -226,10 +242,8 @@ function CreateReportModal({ onClose }) {
     try {
       const appResponse  = await api(`/applications/${applicationId.trim()}`);
       setAppData(appResponse.application);
-
       const logsResponse = await api(`/logs/${applicationId.trim()}`);
       setLogsData(logsResponse);
-
       if (logsResponse?.stats?.totalHours) {
         setHoursCompleted(String(logsResponse.stats.totalHours));
       }
@@ -282,7 +296,6 @@ function CreateReportModal({ onClose }) {
         </div>
 
         <div className="rpt-body">
-          {/* ✅ Search بـ applicationId */}
           <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
             <input
               type="text"
@@ -302,7 +315,6 @@ function CreateReportModal({ onClose }) {
             </button>
           </div>
 
-          {/* ✅ بيانات الطالب بعد الـ Search */}
           {appData && (
             <>
               <div className="rpt-form">
@@ -338,7 +350,6 @@ function CreateReportModal({ onClose }) {
                 </div>
               </div>
 
-              {/* ✅ جدول السجلات الأسبوعية */}
               {weeks.length > 0 && (
                 <div style={{ marginBottom: 24 }}>
                   <h4 style={{ fontWeight: 700, marginBottom: 12 }}>Weekly Training Logbook</h4>
@@ -455,7 +466,6 @@ export default function CompletionReports() {
         </button>
       </div>
 
-      {/* Ready for Report */}
       <div className="cr-section">
         <div className="cr-section-head">
           <FaCheckCircle className="cr-section-icon cr-icon-ready" />
@@ -482,7 +492,6 @@ export default function CompletionReports() {
         </div>
       </div>
 
-      {/* Reports Sent */}
       <div className="cr-section">
         <div className="cr-section-head">
           <FaExclamationCircle className="cr-section-icon cr-icon-pending" />
@@ -509,8 +518,8 @@ export default function CompletionReports() {
         </div>
       </div>
 
-      {selected    && <ReportModal        intern={selected} onClose={() => setSelected(null)} />}
-      {showCreate  && <CreateReportModal               onClose={() => setShowCreate(false)} />}
+      {selected   && <ReportModal       intern={selected} onClose={() => setSelected(null)} />}
+      {showCreate && <CreateReportModal               onClose={() => setShowCreate(false)} />}
     </div>
   );
 }
