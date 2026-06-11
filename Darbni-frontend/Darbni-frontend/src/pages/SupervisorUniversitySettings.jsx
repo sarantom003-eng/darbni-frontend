@@ -70,7 +70,7 @@ export default function SupervisorUniversitySettings() {
           about:   settings.about,
           trainingSettings: {
             requiredHours:       settings.requiredHours,
-            requiredCreditHours: 90,
+            requiredCreditHours: settings.requiredCreditHours,
           },
         },
       });
@@ -183,17 +183,16 @@ export default function SupervisorUniversitySettings() {
               <p className="sus-hint">Total hours required to complete training</p>
             </div>
 
-            {/* ✅ disabled — ثابت 90 */}
+            {/* ✅ قابل للتعديل كمان */}
             <div className="sus-field">
               <label className="sus-label">Minimum Completed Credit Hours</label>
               <input
                 type="number"
                 className="sus-input"
                 value={settings.requiredCreditHours}
-                disabled
+                onChange={e => handleChange("requiredCreditHours", Number(e.target.value))}
                 dir="ltr"
                 lang="en"
-                style={{ background: "#f5f4f9", color: "#888", cursor: "not-allowed" }}
               />
               <p className="sus-hint">Student must complete at least {settings.requiredCreditHours} credit hours before applying</p>
             </div>

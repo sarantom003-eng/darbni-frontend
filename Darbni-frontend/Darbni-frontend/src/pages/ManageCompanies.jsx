@@ -119,11 +119,11 @@ function CompanyModal({ company, onClose, onApprove, onReject, onRevoke, process
 }
 
 export default function ManageCompanies() {
-  const [companies, setCompanies]       = useState([]);
-  const [search, setSearch]             = useState("");
-  const [selected, setSelected]         = useState(null);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState("");
+  const [companies,    setCompanies]    = useState([]);
+  const [search,       setSearch]       = useState("");
+  const [selected,     setSelected]     = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState("");
   const [processingId, setProcessingId] = useState(null);
 
   const mapCompany = (c, fallbackStatus) => ({
@@ -187,7 +187,6 @@ export default function ManageCompanies() {
     }
   };
 
-  // ✅ Reject — للـ pending فقط — مع reason
   const handleReject = async (userId) => {
     setProcessingId(userId);
     try {
@@ -206,17 +205,15 @@ export default function ManageCompanies() {
     }
   };
 
-  // ✅ Revoke — للـ approved فقط — بدون body
+  // ✅ handleRevoke المعدل — يعمل fetchCompanies بعد النجاح
   const handleRevoke = async (userId) => {
     setProcessingId(userId);
     try {
       await api(`/supervisor/companies/${userId}/revoke`, { method: "PATCH" });
-      setCompanies(prev =>
-        prev.map(c => c.userId === userId ? { ...c, status: "rejected" } : c)
-      );
-      setSelected(prev => prev?.userId === userId ? { ...prev, status: "rejected" } : prev);
+      await fetchCompanies(); // ✅ تختفي الشركة تلقائياً بدون ريفريش
+      setSelected(null);      // ✅ يغلق الـ modal لو مفتوح
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      alert(`Error: ${err.message}`); // ✅ بس لو في error حقيقي
     } finally {
       setProcessingId(null);
     }
@@ -318,7 +315,7 @@ export default function ManageCompanies() {
                       {c.status === "approved" && (
                         <button
                           className="mc-btn-text mc-text-danger"
-                          onClick={(e) => { e.stopPropagation(); handleRevoke(c.userId); }}
+                          onClick={e => { e.stopPropagation(); handleRevoke(c.userId); }}
                           disabled={isThisProcessing}
                         >
                           {isThisProcessing ? <FaSpinner className="spinner" /> : "Revoke"}
@@ -328,14 +325,14 @@ export default function ManageCompanies() {
                         <>
                           <button
                             className="mc-btn-outline mc-outline-success"
-                            onClick={(e) => { e.stopPropagation(); handleApprove(c.userId); }}
+                            onClick={e => { e.stopPropagation(); handleApprove(c.userId); }}
                             disabled={isThisProcessing}
                           >
                             {isThisProcessing ? <FaSpinner className="spinner" /> : <><FaCheck /> Approve</>}
                           </button>
                           <button
                             className="mc-btn-outline mc-outline-danger"
-                            onClick={(e) => { e.stopPropagation(); handleReject(c.userId); }}
+                            onClick={e => { e.stopPropagation(); handleReject(c.userId); }}
                             disabled={isThisProcessing}
                           >
                             {isThisProcessing ? <FaSpinner className="spinner" /> : <><FaTimes /> Reject</>}
