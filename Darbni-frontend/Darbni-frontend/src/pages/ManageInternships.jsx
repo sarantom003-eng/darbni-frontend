@@ -205,6 +205,7 @@ export default function ManageInternships() {
 
   useEffect(() => { loadJobs(); }, []);
 
+  // ✅ toggle active/hidden — مربوط بالـ API
   const toggleHide = async (id) => {
     try {
       await trainingApi.toggle(id);
@@ -212,12 +213,13 @@ export default function ManageInternships() {
     } catch (err) { setError(err.message); }
   };
 
-  // ✅ toggleFull مربوط بالـ API
-  const toggleFull = async (id) => {
-    try {
-      await trainingApi.status(id, "full");
-      loadJobs();
-    } catch (err) { setError(err.message); }
+  // ✅ toggleFull — محلي فقط لأنو ما في API endpoint للـ full
+  const toggleFull = (id) => {
+    setJobs(js => js.map(j =>
+      j.id === id
+        ? { ...j, status: j.status === "full" ? "active" : "full" }
+        : j
+    ));
   };
 
   const confirmDelete = async () => {

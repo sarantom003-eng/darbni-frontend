@@ -8,6 +8,7 @@ const getColorForName = (name) => {
   return colors[index];
 };
 
+// ✅ mapApplication معدلة حسب الصور
 const mapApplication = (app, statusType) => {
   const student  = app.studentId  || {};
   const training = app.trainingId || {};
@@ -15,10 +16,12 @@ const mapApplication = (app, statusType) => {
   const lastName  = student.lastName  || "";
   const fullName  = `${firstName} ${lastName}`.trim() || "Unknown Student";
 
+  // ✅ التعديل من الصورة 5
   let displayStatus = "pending";
   if (statusType === "resolved") {
-    if (app.status === "company_approved")  displayStatus = "approved";
-    else if (app.status === "company_rejected") displayStatus = "rejected";
+    if (app.status === "company_rejected")   displayStatus = "rejected";
+    else if (app.status === "auto_cancelled") displayStatus = "cancelled";
+    else                                      displayStatus = "approved";
   }
 
   return {
@@ -41,7 +44,6 @@ const mapApplication = (app, statusType) => {
   };
 };
 
-// ✅ Modal بسيط للـ rejection reason
 function RejectModal({ onConfirm, onCancel }) {
   const [reason, setReason] = useState("");
   return (
@@ -72,14 +74,13 @@ function RejectModal({ onConfirm, onCancel }) {
 }
 
 export default function StudentRequests() {
-  const [pending, setPending]       = useState([]);
-  const [resolved, setResolved]     = useState([]);
-  const [activeTab, setActiveTab]   = useState("pending");
-  const [expandedId, setExpandedId] = useState(null);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState("");
+  const [pending,      setPending]      = useState([]);
+  const [resolved,     setResolved]     = useState([]);
+  const [activeTab,    setActiveTab]    = useState("pending");
+  const [expandedId,   setExpandedId]   = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState("");
   const [processingId, setProcessingId] = useState(null);
-  // ✅ state للـ reject modal
   const [rejectTarget, setRejectTarget] = useState(null);
 
   const loadApplications = async () => {
@@ -128,8 +129,8 @@ export default function StudentRequests() {
     setExpandedId(prev => prev === id ? null : id);
   };
 
-  const displayList  = activeTab === "pending" ? pending : resolved;
-  const pendingCount = pending.length;
+  const displayList   = activeTab === "pending" ? pending : resolved;
+  const pendingCount  = pending.length;
   const resolvedCount = resolved.length;
 
   return (
@@ -214,11 +215,15 @@ export default function StudentRequests() {
                       </button>
                     </>
                   )}
+                  {/* ✅ التعديل من الصورة 6 */}
                   {req.status === "approved" && (
                     <span className="sr-status-badge sr-status-approved">Approved</span>
                   )}
                   {req.status === "rejected" && (
                     <span className="sr-status-badge sr-status-rejected">Rejected</span>
+                  )}
+                  {req.status === "cancelled" && (
+                    <span className="sr-status-badge sr-status-cancelled">Cancelled</span>
                   )}
                   <FaChevronRight
                     className={`sr-chevron${expandedId === req.id ? " sr-chevron-open" : ""}`}
@@ -252,7 +257,10 @@ export default function StudentRequests() {
                     <div className="sr-detail-item">
                       <span className="sr-detail-label">Status</span>
                       <span className="sr-detail-val" style={{
-                        color: req.status === "approved" ? "#27ae60" : req.status === "rejected" ? "#e74c3c" : "#b8860b",
+                        color: req.status === "approved" ? "#27ae60"
+                             : req.status === "rejected"  ? "#e74c3c"
+                             : req.status === "cancelled" ? "#888"
+                             : "#b8860b",
                         fontWeight: 700,
                         textTransform: "capitalize"
                       }}>{req.status}</span>
@@ -283,7 +291,6 @@ export default function StudentRequests() {
         </div>
       )}
 
-      {/* ✅ Reject Modal */}
       {rejectTarget && (
         <RejectModal
           onConfirm={handleRejectConfirm}

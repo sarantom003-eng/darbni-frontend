@@ -65,11 +65,11 @@ function RequestModal({ req, onClose, onAccept }) {
           <p className="ur-report-sub">Forwarded by {req.university}</p>
           <h4 className="ur-report-sec">Student Information</h4>
           <div className="ur-report-grid">
-            <Field label="STUDENT NAME"    value={req.name} />
-            <Field label="UNIVERSITY"      value={req.university} />
-            <Field label="TRAINING TITLE"  value={req.position} />
-            <Field label="COMPANY"         value={company} />
-            <Field label="START DATE"      value={req.startDate} />
+            <Field label="STUDENT NAME"   value={req.name} />
+            <Field label="UNIVERSITY"     value={req.university} />
+            <Field label="TRAINING TITLE" value={req.position} />
+            <Field label="COMPANY"        value={company} />
+            <Field label="START DATE"     value={req.startDate} />
           </div>
         </div>
 
@@ -97,19 +97,20 @@ function Field({ label, value, full }) {
   );
 }
 
-const mapApplication = (app) => {
+// ✅ mapApplication معدلة حسب التعديلات
+const mapApplication = (app, statusType) => {
   const student  = app.studentId  || {};
   const training = app.trainingId || {};
   const firstName = student.firstName || "";
   const lastName  = student.lastName  || "";
   const fullName  = `${firstName} ${lastName}`.trim() || "Unknown Student";
 
-  // ✅ supervisor من officialLetter اللي بيرجعه الـ API بعد university_approved
   const supervisorName = app.officialLetter?.supervisorName || "University Supervisor";
 
+  // ✅ التعديل من الصورة
   let displayStatus = "pending";
-  if (app.status === "company_final_approved") displayStatus = "resolved";
-  if (app.status === "university_rejected")    displayStatus = "cancelled";
+  if (statusType === "resolved")  displayStatus = "resolved";
+  if (statusType === "cancelled") displayStatus = "cancelled";
 
   return {
     id:             app._id,
@@ -136,41 +137,46 @@ const mapApplication = (app) => {
 };
 
 export default function UniversityRequests() {
-  const [pending,   setPending]   = useState([]);
-  const [resolved,  setResolved]  = useState([]);
-  const [cancelled, setCancelled] = useState([]);
-  const [tab,       setTab]       = useState("pending");
-  const [selected,  setSelected]  = useState(null);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState("");
+  const [pending,      setPending]      = useState([]);
+  const [resolved,     setResolved]     = useState([]);
+  const [cancelled,    setCancelled]    = useState([]);
+  const [tab,          setTab]          = useState("pending");
+  const [selected,     setSelected]     = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState("");
   const [processingId, setProcessingId] = useState(null);
-  const [toast,     setToast]     = useState(null);
+  const [toast,        setToast]        = useState(null);
 
   const showToast = (message, type = "error") => setToast({ message, type });
 
+  // ✅ loadApplications معدلة حسب الصور
   const loadApplications = async () => {
     setLoading(true);
     setError("");
     try {
-      // ✅ company() مش university() — لأنو هاد للشركة
       const response = await applicationApi.company();
 
-      // ✅ pending = university_approved فقط — يعني الجامعة وافقت وبانتظار الشركة
-      const pendingApps  = (response.pending || [])
-        .filter(app => app.status === "university_approved")
-        .map(mapApplication);
+      // ✅ pending = university_approved من resolved
+      const universityPending = (response.resolved || []).filter(
+        app => app.status === "university_approved"
+      );
 
-      const resolvedApps = (response.resolved || [])
-        .filter(app => app.status === "company_final_approved")
-        .map(mapApplication);
+      // ✅ resolved = company_final_approved أو in_training أو completed
+      const universityResolved = (response.resolved || []).filter(
+        app =>
+          app.status === "company_final_approved" ||
+          app.status === "in_training" ||
+          app.status === "completed"
+      );
 
-      const cancelledApps = (response.resolved || [])
-        .filter(app => app.status === "university_rejected")
-        .map(mapApplication);
+      // ✅ cancelled = auto_cancelled
+      const universityCancelled = (response.resolved || []).filter(
+        app => app.status === "auto_cancelled"
+      );
 
-      setPending(pendingApps);
-      setResolved(resolvedApps);
-      setCancelled(cancelledApps);
+      setPending(universityPending.map(app => mapApplication(app, "pending")));
+      setResolved(universityResolved.map(app => mapApplication(app, "resolved")));
+      setCancelled(universityCancelled.map(app => mapApplication(app, "cancelled")));
     } catch (err) {
       setError(err.message);
     } finally {
