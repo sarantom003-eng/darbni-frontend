@@ -11,43 +11,37 @@ const reportsApi = {
 };
 
 const mapIntern = (app, type) => {
-  const student  = app.studentId  || {};
-  const training = app.trainingId || {};
+  const student    = app.studentId    || {};
+  const training   = app.trainingId   || {};
+  const supervisor = app.supervisorId || {};
+
   const firstName = student.firstName || "";
   const lastName  = student.lastName  || "";
   const fullName  = `${firstName} ${lastName}`.trim() || "Unknown Student";
 
-  // ✅ supervisor من officialLetter أو trainer الشركة
-  const supervisorName =
-    app.officialLetter?.supervisorName ||
-    (app.companyId?.trainer?.firstName
-      ? `${app.companyId.trainer.firstName} ${app.companyId.trainer.lastName || ""}`.trim()
-      : "TBD");
-
-  // ✅ تاريخ الخطاب = وقت ما المشرف أرسله
-  const letterDate = app.submittedToUniversityAt
-    ? new Date(app.submittedToUniversityAt).toLocaleDateString("en-US", {
-        month: "long", day: "numeric", year: "numeric"
-      })
-    : new Date().toLocaleDateString("en-US", {
-        month: "long", day: "numeric", year: "numeric"
-      });
+  const supervisorName = supervisor.firstName
+    ? `${supervisor.firstName} ${supervisor.lastName || ""}`.trim()
+    : "Not Assigned";
 
   return {
-    id:          app._id,
-    name:        fullName,
-    initials:    firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
-    color:       ["#7c5cbf","#e67e22","#27ae60","#e74c3c","#3498db"][firstName.charCodeAt(0) % 5 || 0],
-    studentId:   student.studentID || "N/A",
-    university:  student.university_name || student.universityId?.name || "Unknown",
-    internship:  training.title || "Unknown Training",
-    department:  student.major  || "N/A",
-    company:     localStorage.getItem("name") || "Your Company",
-    supervisor:  supervisorName,
-    letterDate,
-    startDate:   training.startDate ? new Date(training.startDate).toLocaleDateString() : "TBD",
-    endDate:     "TBD",
-    status:      app.status,
+    id:         app._id,
+    name:       fullName,
+    initials:   firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
+    color:      ["#7c5cbf","#e67e22","#27ae60","#e74c3c","#3498db"][firstName.charCodeAt(0) % 5 || 0],
+    studentId:  student.studentID || "N/A",
+    university: student.university_name || student.universityId?.name || "Unknown",
+    internship: training.title || "Unknown Training",
+    department: student.major  || "N/A",
+    company:    localStorage.getItem("name") || "Your Company",
+    supervisor: supervisorName,
+    startDate:  training.startDate ? new Date(training.startDate).toLocaleDateString() : "N/A",
+    endDate: training.startDate && training.duration_weeks
+      ? new Date(
+          new Date(training.startDate).getTime() + 
+          training.duration_weeks * 7 * 24 * 60 * 60 * 1000
+        ).toLocaleDateString()
+      : "N/A",
+    status:     app.status,
   };
 };
 
@@ -93,6 +87,8 @@ function ReportModal({ intern, onClose }) {
   const [otherComments,  setOtherComments]  = useState("");
   const [sending,        setSending]        = useState(false);
 
+  const letterDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
   const handleSendReport = async () => {
     if (rating === 0) { alert("Please select a final rating"); return; }
     setSending(true);
@@ -134,8 +130,7 @@ function ReportModal({ intern, onClose }) {
             <div className="rpt-letter-header">
               <img src="/ptu-banner.png" alt="University" className="rpt-letter-banner" />
             </div>
-            {/* ✅ التاريخ من الـ API */}
-            <div className="rpt-letter-date">{intern.letterDate} &emsp; التاريخ :</div>
+            <div className="rpt-letter-date">{letterDate} &emsp; التاريخ :</div>
             <div className="rpt-letter-to">حضرة السادة : <strong>{intern.company}</strong>. المحترمين</div>
             <div className="rpt-letter-subject">
               <strong>الموضوع : التدريب الميداني</strong><br />
@@ -147,7 +142,6 @@ function ReportModal({ intern, onClose }) {
             </p>
             <div className="rpt-letter-closing">وتفضلوا بقبول فائق الاحترام..</div>
             <div className="rpt-letter-signature">
-              {/* ✅ supervisor من الـ API */}
               <div>مسؤول التدريب : <strong>{intern.supervisor}</strong></div>
               <div className="rpt-letter-sig-uni">{intern.university}</div>
             </div>
@@ -184,6 +178,38 @@ function ReportModal({ intern, onClose }) {
             </div>
           </div>
 
+          {/* تعديل اضافة جداول السجلات 12-6  */}
+            {intern.weeks && intern.weeks.length > 0 && (
+              <div style={{ marginBottom: 24 }}>
+                <h4 style={{ fontWeight: 700, marginBottom: 12 }}>Weekly Training Logbook</h4>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: "#f5f4f1" }}>
+                      {["Week","Day","Date","Tasks Completed","Hours","Feedback"].map(h => (
+                        <th key={h} style={{ padding: "8px 6px", textAlign: "left", borderBottom: "1px solid #e0e0e0", fontWeight: 600 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {intern.weeks.map((week, wi) =>
+                      week.entries.map((entry, ei) => (
+                        <tr key={`${wi}-${ei}`} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                          <td style={{ padding: "6px", color: "#6c47ff", fontWeight: ei === 0 ? 700 : 400 }}>
+                            {ei === 0 ? week.label : ""}
+                          </td>
+                          <td style={{ padding: "6px" }}>{entry.day}</td>
+                          <td style={{ padding: "6px" }}>{entry.date}</td>
+                          <td style={{ padding: "6px" }}>{entry.task}</td>
+                          <td style={{ padding: "6px" }}>{entry.hours}h</td>
+                          <td style={{ padding: "6px", fontStyle: "italic", color: "#888" }}>{entry.feedback}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          
           <div className="rpt-rating-section">
             <label className="rpt-label">Final Rating *</label>
             <div className="rpt-stars">
@@ -209,9 +235,9 @@ function ReportModal({ intern, onClose }) {
           </div>
         </div>
 
-        {/* ✅ حذفنا Print */}
         <div className="rpt-footer">
           <button className="rpt-btn-cancel" onClick={onClose}>Cancel</button>
+         
           <button className="rpt-btn-send" onClick={handleSendReport} disabled={sending}>
             {sending ? "Sending..." : "✓ Save & Send to University"}
           </button>
@@ -224,6 +250,8 @@ function ReportModal({ intern, onClose }) {
 /* ── CreateReportModal ── */
 function CreateReportModal({ onClose }) {
   const [applicationId,  setApplicationId]  = useState("");
+  // جديدة 12-6 
+  const [realApplicationId, setRealApplicationId] = useState("");
   const [appData,        setAppData]        = useState(null);
   const [logsData,       setLogsData]       = useState(null);
   const [loadingApp,     setLoadingApp]     = useState(false);
@@ -234,25 +262,33 @@ function CreateReportModal({ onClose }) {
   const [hoursCompleted, setHoursCompleted] = useState("160");
   const [sending,        setSending]        = useState(false);
 
-  const fetchApplicationData = async () => {
-    if (!applicationId.trim()) return;
-    setLoadingApp(true);
-    setAppData(null);
-    setLogsData(null);
-    try {
-      const appResponse  = await api(`/applications/${applicationId.trim()}`);
-      setAppData(appResponse.application);
-      const logsResponse = await api(`/logs/${applicationId.trim()}`);
-      setLogsData(logsResponse);
-      if (logsResponse?.stats?.totalHours) {
-        setHoursCompleted(String(logsResponse.stats.totalHours));
-      }
-    } catch (err) {
-      alert("Application not found: " + err.message);
-    } finally {
-      setLoadingApp(false);
+    {/*  تعديل 12-6 عدلت ال id   */}
+ const fetchApplicationData = async () => {
+  if (!applicationId.trim()) return;
+  setLoadingApp(true);
+  setAppData(null);
+  setLogsData(null);
+  try {
+    // نبحث بـ Student ID بدل Application ID
+    const appResponse = await api(`/applications/by-student-id/${applicationId.trim()}`);
+    setAppData(appResponse.application);
+
+    const logsResponse = await api(`/logs/${appResponse.application._id}`);
+    setLogsData(logsResponse);
+
+    if (logsResponse?.stats?.totalHours) {
+      setHoursCompleted(String(logsResponse.stats.totalHours));
     }
-  };
+    
+    // نحفظ الـ applicationId الحقيقي عشان نستخدمه في الإرسال
+    setRealApplicationId(appResponse.application._id);
+  } catch (err) {
+    alert("Student not found: " + err.message);
+  } finally {
+    setLoadingApp(false);
+  }
+};
+  
 
   const handleSend = async () => {
     if (!applicationId.trim()) { alert("Please enter Application ID"); return; }
@@ -260,7 +296,7 @@ function CreateReportModal({ onClose }) {
     setSending(true);
     try {
       await reportsApi.create({
-        applicationId:      applicationId.trim(),
+        applicationId:      realApplicationId || applicationId.trim(),
         attendanceRate:     100,
         overallRating:      rating,
         performanceSummary: perfComments,
@@ -296,6 +332,7 @@ function CreateReportModal({ onClose }) {
         </div>
 
         <div className="rpt-body">
+          {/* ✅ Search بـ applicationId */}
           <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
             <input
               type="text"
@@ -315,6 +352,7 @@ function CreateReportModal({ onClose }) {
             </button>
           </div>
 
+          {/* ✅ بيانات الطالب بعد الـ Search */}
           {appData && (
             <>
               <div className="rpt-form">
@@ -350,6 +388,7 @@ function CreateReportModal({ onClose }) {
                 </div>
               </div>
 
+              {/* ✅ جدول السجلات الأسبوعية */}
               {weeks.length > 0 && (
                 <div style={{ marginBottom: 24 }}>
                   <h4 style={{ fontWeight: 700, marginBottom: 12 }}>Weekly Training Logbook</h4>
@@ -431,13 +470,31 @@ export default function CompletionReports() {
   const [pending,    setPending]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState("");
+  
 
   const loadReports = async () => {
     setLoading(true);
     setError("");
     try {
       const response = await reportsApi.companyReports();
-      setReady((response.needsReport?.list   || []).map(app => mapIntern(app, "needsReport")));
+      {/*  عدلتها 12-6 */}
+      {/*   setReady((response.needsReport?.list   || []).map(app => mapIntern(app, "needsReport")));  */}
+
+      {/*  عدلتها 12-6 */}
+      const needsList = response.needsReport?.list || [];
+      const readyWithLogs = await Promise.all(needsList.map(async (app) => {
+       const intern = mapIntern(app, "needsReport");
+        try {
+             const logsData = await api(`/logs/${app._id}`);
+              intern.weeks = buildWeeks(logsData?.logs || []);
+              intern.totalHours = logsData?.stats?.totalHours || 160;
+            } catch {
+              intern.weeks = [];
+            }
+            return intern;
+          }));
+          setReady(readyWithLogs);
+      
       setPending((response.reportsReady?.list || []).map(app => mapIntern(app, "reportsReady")));
     } catch (err) {
       setError(err.message);
@@ -466,6 +523,7 @@ export default function CompletionReports() {
         </button>
       </div>
 
+      {/* Ready for Report */}
       <div className="cr-section">
         <div className="cr-section-head">
           <FaCheckCircle className="cr-section-icon cr-icon-ready" />
@@ -492,6 +550,7 @@ export default function CompletionReports() {
         </div>
       </div>
 
+      {/* Reports Sent */}
       <div className="cr-section">
         <div className="cr-section-head">
           <FaExclamationCircle className="cr-section-icon cr-icon-pending" />
@@ -518,8 +577,8 @@ export default function CompletionReports() {
         </div>
       </div>
 
-      {selected   && <ReportModal       intern={selected} onClose={() => setSelected(null)} />}
-      {showCreate && <CreateReportModal               onClose={() => setShowCreate(false)} />}
+      {selected    && <ReportModal        intern={selected} onClose={() => setSelected(null)} />}
+      {showCreate  && <CreateReportModal               onClose={() => setShowCreate(false)} />}
     </div>
   );
 }
