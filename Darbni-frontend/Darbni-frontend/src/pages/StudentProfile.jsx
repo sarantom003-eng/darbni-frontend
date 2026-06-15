@@ -189,6 +189,7 @@ function StudentProfile() {
             <button
               className="profile-avatar-camera"
               onClick={() => fileRef.current.click()}
+              
               disabled={uploading}
               title={uploading ? "Uploading..." : "Change photo"}
             >
