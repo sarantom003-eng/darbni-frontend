@@ -29,21 +29,21 @@ const mapIntern = (app, type) => {
     : null;
   const totalDays = training.duration_weeks ? training.duration_weeks * 7 : null;
 
- return {
-    id:                app._id,
-    name:              fullName,
-    initials:          firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
-    color:             ["#7c5cbf","#e67e22","#27ae60","#e74c3c","#3498db"][firstName.charCodeAt(0) % 5 || 0],
-    studentId:         student.studentID || "N/A",
-    university:        student.university_name || student.universityId?.name || "Unknown",
-    internship:        training.title || "Unknown Training",
-    department:        student.major  || "N/A",
-    company:           localStorage.getItem("name") || "Your Company",
-    supervisor:        supervisorName,
-    startDate:         startDate ? startDate.toLocaleDateString() : "N/A",
-    endDate:           endDate   ? endDate.toLocaleDateString()   : "N/A",
-    totalDays:         totalDays ? `${totalDays} days` : "N/A",
-    status:            app.status,
+  return {
+    id:                 app._id,
+    name:               fullName,
+    initials:           firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
+    color:              ["#7c5cbf","#e67e22","#27ae60","#e74c3c","#3498db"][firstName.charCodeAt(0) % 5 || 0],
+    studentId:          student.studentID || "N/A",
+    university:         student.university_name || student.universityId?.name || "Unknown",
+    internship:         training.title || "Unknown Training",
+    department:         student.major  || "N/A",
+    company:            localStorage.getItem("name") || "Your Company",
+    supervisor:         supervisorName,
+    startDate:          startDate ? startDate.toLocaleDateString() : "N/A",
+    endDate:            endDate   ? endDate.toLocaleDateString()   : "N/A",
+    totalDays:          totalDays ? `${totalDays} days` : "N/A",
+    status:             app.status,
     officialLetterDate: app.officialLetter?.letterDate || app.submittedToUniversityAt || null,
   };
 };
@@ -88,9 +88,10 @@ function ReportModal({ intern, onClose }) {
   const [otherComments,  setOtherComments]  = useState("");
   const [sending,        setSending]        = useState(false);
 
-const letterDate = intern.submittedToUniversityAt
-  ? new Date(intern.submittedToUniversityAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-  : new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const letterDate = intern.officialLetterDate
+    ? new Date(intern.officialLetterDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
   const handleSendReport = async () => {
     if (rating === 0) { alert("Please select a final rating"); return; }
     setSending(true);
@@ -309,7 +310,6 @@ function CreateReportModal({ onClose }) {
   const supervisor = appData?.supervisorId || {};
   const weeks      = buildWeeks(logsData?.logs || []);
 
-  // ✅ بيانات الخطاب
   const supervisorName = supervisor.firstName
     ? `${supervisor.firstName} ${supervisor.lastName || ""}`.trim()
     : "مسؤول التدريب";
@@ -337,7 +337,6 @@ function CreateReportModal({ onClose }) {
         </div>
 
         <div className="rpt-body">
-          {/* Search */}
           <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
             <input
               type="text"
@@ -356,7 +355,6 @@ function CreateReportModal({ onClose }) {
 
           {appData && (
             <>
-              {/* ✅ الخطاب الرسمي */}
               <div className="rpt-letter">
                 <div className="rpt-letter-header">
                   <img src="/ptu-banner.png" alt="University" className="rpt-letter-banner" />
@@ -379,7 +377,6 @@ function CreateReportModal({ onClose }) {
                 </div>
               </div>
 
-              {/* Form */}
               <div className="rpt-eval-header">
                 <h3 className="rpt-eval-title">Final Training Report — Company Evaluation</h3>
                 <p className="rpt-eval-sub">To be filled and sent back to the university</p>
@@ -418,7 +415,6 @@ function CreateReportModal({ onClose }) {
                 </div>
               </div>
 
-              {/* Logbook */}
               {weeks.length > 0 && (
                 <div style={{ marginBottom: 24 }}>
                   <h4 style={{ fontWeight: 700, marginBottom: 12 }}>Weekly Training Logbook</h4>
@@ -452,7 +448,6 @@ function CreateReportModal({ onClose }) {
                 <div style={{ color: "#aaa", padding: "16px 0", fontSize: 13 }}>No training logs found.</div>
               )}
 
-              {/* Rating */}
               <div className="rpt-rating-section">
                 <label className="rpt-label">Final Rating *</label>
                 <div className="rpt-stars">
@@ -491,6 +486,7 @@ function CreateReportModal({ onClose }) {
       </div>
     </div>
   );
+}
 
 function ViewReportModal({ intern, onClose }) {
   const [reportData, setReportData] = useState(null);
@@ -519,11 +515,10 @@ function ViewReportModal({ intern, onClose }) {
     </div>
   );
 
-  const report = reportData?.report;
+  const report     = reportData?.report;
   const letterDate = report?.report_date
     ? new Date(report.report_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
     : new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-
   const weeks = buildWeeks(reportData?.logs || []);
 
   return (
@@ -657,14 +652,13 @@ function ViewReportModal({ intern, onClose }) {
   );
 }
 
-}
 export default function CompletionReports() {
-  const [selected,   setSelected]   = useState(null);
-  const [showCreate, setShowCreate] = useState(false);
-  const [ready,      setReady]      = useState([]);
-  const [pending,    setPending]    = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState("");
+  const [selected,        setSelected]        = useState(null);
+  const [showCreate,      setShowCreate]      = useState(false);
+  const [ready,           setReady]           = useState([]);
+  const [pending,         setPending]         = useState([]);
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState("");
   const [selectedPending, setSelectedPending] = useState(null);
 
   const loadReports = async () => {
@@ -751,9 +745,9 @@ export default function CompletionReports() {
           {pending.length === 0 && <div style={{ color: "#aaa", padding: 20 }}>No reports sent yet.</div>}
           {pending.map(intern => (
             <div key={intern.id} className="cr-card cr-card-pending"
-  onClick={() => setSelectedPending(intern)}
-  style={{ cursor: "pointer" }}
->
+              onClick={() => setSelectedPending(intern)}
+              style={{ cursor: "pointer" }}
+            >
               <div className="cr-avatar" style={{ background: intern.color }}>{intern.initials}</div>
               <div className="cr-card-info">
                 <span className="cr-card-name">{intern.name}</span>
@@ -768,9 +762,9 @@ export default function CompletionReports() {
         </div>
       </div>
 
-      {selected   && <ReportModal intern={selected} onClose={() => setSelected(null)} />}
-      {showCreate && <CreateReportModal onClose={() => setShowCreate(false)} />}
-        {selectedPending && <ViewReportModal intern={selectedPending} onClose={() => setSelectedPending(null)} />}
+      {selected        && <ReportModal intern={selected} onClose={() => setSelected(null)} />}
+      {showCreate      && <CreateReportModal onClose={() => setShowCreate(false)} />}
+      {selectedPending && <ViewReportModal intern={selectedPending} onClose={() => setSelectedPending(null)} />}
     </div>
   );
 }
