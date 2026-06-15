@@ -21,7 +21,6 @@ function ViewModal({ job, onClose, onEdit }) {
     { label: "Positions",    value: `${job.filled}/${job.positions} filled` },
     { label: "Weekly Hours", value: `${job.hours}h` },
     { label: "Total Hours",  value: `${job.totalHours || "N/A"}h` },
-    { label: "Start Date",   value: job.startDate ? new Date(job.startDate).toLocaleDateString() : "N/A" },
     { label: "Status",       value: job.status.charAt(0).toUpperCase() + job.status.slice(1) },
   ];
   return (
@@ -66,16 +65,13 @@ function EditModal({ job, onClose, onSave }) {
   const [capacity,   setCapacity]   = useState(String(job.positions));
   const [hours,      setHours]      = useState(String(job.hours));
   const [totalHours, setTotalHours] = useState(String(job.totalHours || "160"));
-  const [startDate,  setStartDate]  = useState(
-    job.startDate ? new Date(job.startDate).toISOString().split("T")[0] : ""
-  );
   const [desc,       setDesc]       = useState(job.description || "");
   const [benefits,   setBenefits]   = useState(job.benefits || "");
 
   const handleSave = () => {
     if (!title.trim() || !field.trim()) return;
     if (Number(totalHours) < 160) { alert("Total hours must be at least 160"); return; }
-    onSave({ ...job, title, field, location, type, positions: Number(capacity), hours: Number(hours), totalHours: Number(totalHours), startDate, description: desc, benefits });
+    onSave({ ...job, title, field, location, type, positions: Number(capacity), hours: Number(hours), totalHours: Number(totalHours), description: desc, benefits });
   };
 
   return (
@@ -97,8 +93,6 @@ function EditModal({ job, onClose, onSave }) {
           <div className="mi-edit-field"><label className="mi-edit-label">Capacity</label><input className="mi-input" type="number" value={capacity} onChange={e => setCapacity(e.target.value)} /></div>
           <div className="mi-edit-field"><label className="mi-edit-label">Weekly Hours</label><input className="mi-input" type="number" value={hours} onChange={e => setHours(e.target.value)} /></div>
           <div className="mi-edit-field"><label className="mi-edit-label">Total Hours (min 160)</label><input className="mi-input" type="number" value={totalHours} onChange={e => setTotalHours(e.target.value)} /></div>
-          {/* ✅ Start Date */}
-          <div className="mi-edit-field"><label className="mi-edit-label">Start Date</label><input className="mi-input" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
         </div>
         <div className="mi-edit-field"><label className="mi-edit-label">Description</label><textarea className="mi-input mi-textarea" rows="3" value={desc} onChange={e => setDesc(e.target.value)} /></div>
         <div className="mi-edit-field"><label className="mi-edit-label">Benefits</label><textarea className="mi-input mi-textarea" rows="2" value={benefits} onChange={e => setBenefits(e.target.value)} /></div>
@@ -119,14 +113,13 @@ function AddModal({ onClose, onSave }) {
   const [capacity,   setCapacity]   = useState("5");
   const [hours,      setHours]      = useState("25");
   const [totalHours, setTotalHours] = useState("160");
-  const [startDate,  setStartDate]  = useState("");
   const [desc,       setDesc]       = useState("");
   const [benefits,   setBenefits]   = useState("");
 
   const handleSave = () => {
     if (!title.trim() || !field.trim()) { alert("Title and Field are required"); return; }
     if (Number(totalHours) < 160) { alert("Total hours must be at least 160"); return; }
-    onSave({ title, field, location, type, positions: Number(capacity), hours: Number(hours), totalHours: Number(totalHours), startDate, description: desc, benefits });
+    onSave({ title, field, location, type, positions: Number(capacity), hours: Number(hours), totalHours: Number(totalHours), description: desc, benefits });
   };
 
   return (
@@ -148,8 +141,6 @@ function AddModal({ onClose, onSave }) {
           <div className="mi-edit-field"><label className="mi-edit-label">Capacity</label><input className="mi-input" type="number" value={capacity} onChange={e => setCapacity(e.target.value)} /></div>
           <div className="mi-edit-field"><label className="mi-edit-label">Weekly Hours</label><input className="mi-input" type="number" value={hours} onChange={e => setHours(e.target.value)} /></div>
           <div className="mi-edit-field"><label className="mi-edit-label">Total Hours (min 160)</label><input className="mi-input" type="number" value={totalHours} onChange={e => setTotalHours(e.target.value)} /></div>
-          {/* ✅ Start Date */}
-          <div className="mi-edit-field"><label className="mi-edit-label">Start Date</label><input className="mi-input" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
         </div>
         <div className="mi-edit-field"><label className="mi-edit-label">Description</label><textarea className="mi-input mi-textarea" rows="3" value={desc} onChange={e => setDesc(e.target.value)} /></div>
         <div className="mi-edit-field"><label className="mi-edit-label">Benefits</label><textarea className="mi-input mi-textarea" rows="2" value={benefits} onChange={e => setBenefits(e.target.value)} /></div>
@@ -178,7 +169,6 @@ function DeleteModal({ onClose, onConfirm }) {
   );
 }
 
-// ✅ أضفنا startDate للـ mapJob
 const mapJob = (t) => ({
   id:          t._id,
   title:       t.title,
@@ -189,7 +179,6 @@ const mapJob = (t) => ({
   filled:      t.acceptedCount || 0,
   hours:       t.weeklyHours  || 0,
   totalHours:  t.totalHours   || 0,
-  startDate:   t.startDate    || "",
   status:      t.isFull ? "full" : t.isActive ? "active" : "hidden",
   postedAt:    t.createdAt ? new Date(t.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
   description: t.description || "",
@@ -216,6 +205,7 @@ export default function ManageInternships() {
 
   useEffect(() => { loadJobs(); }, []);
 
+  // ✅ toggle active/hidden — مربوط بالـ API
   const toggleHide = async (id) => {
     try {
       await trainingApi.toggle(id);
@@ -223,6 +213,7 @@ export default function ManageInternships() {
     } catch (err) { setError(err.message); }
   };
 
+  // ✅ toggleFull — محلي فقط لأنو ما في API endpoint للـ full
   const toggleFull = (id) => {
     setJobs(js => js.map(j =>
       j.id === id
@@ -249,7 +240,6 @@ export default function ManageInternships() {
         capacity:      Number(updated.positions),
         weeklyHours:   Number(updated.hours),
         totalHours:    Number(updated.totalHours),
-        startDate:     updated.startDate || undefined,
         description:   updated.description,
         benefits:      updated.benefits,
       });
@@ -269,7 +259,6 @@ export default function ManageInternships() {
         capacity:      Number(newJob.positions),
         weeklyHours:   Number(newJob.hours),
         totalHours:    Number(newJob.totalHours),
-        startDate:     newJob.startDate || undefined,
         description:   newJob.description,
         benefits:      newJob.benefits,
       });
