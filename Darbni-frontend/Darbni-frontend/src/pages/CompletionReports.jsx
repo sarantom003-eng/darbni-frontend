@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   FaCheckCircle, FaExclamationCircle, FaChevronRight,
-  FaPlus, FaFileAlt, FaStar, FaPrint
+  FaPlus, FaFileAlt, FaStar
 } from "react-icons/fa";
 import { api } from "../api/client";
 
@@ -11,30 +11,42 @@ const reportsApi = {
 };
 
 const mapIntern = (app, type) => {
-  const student  = app.studentId  || {};
-  const training = app.trainingId || {};
+  const student    = app.studentId    || {};
+  const training   = app.trainingId   || {};
+  const supervisor = app.supervisorId || {};
+
   const firstName = student.firstName || "";
   const lastName  = student.lastName  || "";
   const fullName  = `${firstName} ${lastName}`.trim() || "Unknown Student";
 
+  const supervisorName = supervisor.firstName
+    ? `${supervisor.firstName} ${supervisor.lastName || ""}`.trim()
+    : "Not Assigned";
+
+  const startDate = training.startDate ? new Date(training.startDate) : null;
+  const endDate = startDate && training.duration_weeks
+    ? new Date(startDate.getTime() + training.duration_weeks * 7 * 24 * 60 * 60 * 1000)
+    : null;
+  const totalDays = training.duration_weeks ? training.duration_weeks * 7 : null;
+
   return {
-    id:          app._id,
-    name:        fullName,
-    initials:    firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
-    color:       ["#7c5cbf","#e67e22","#27ae60","#e74c3c","#3498db"][firstName.charCodeAt(0) % 5 || 0],
-    studentId:   student.studentID || "N/A",
-    university:  student.university_name || student.universityId?.name || "Unknown",
-    internship:  training.title || "Unknown Training",
-    department:  student.major  || "N/A",
-    company:     localStorage.getItem("name") || "Your Company",
-    supervisor:  "TBD",
-    startDate:   training.startDate ? new Date(training.startDate).toLocaleDateString() : "TBD",
-    endDate:     "TBD",
-    status:      app.status,
+    id:         app._id,
+    name:       fullName,
+    initials:   firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
+    color:      ["#7c5cbf","#e67e22","#27ae60","#e74c3c","#3498db"][firstName.charCodeAt(0) % 5 || 0],
+    studentId:  student.studentID || "N/A",
+    university: student.university_name || student.universityId?.name || "Unknown",
+    internship: training.title || "Unknown Training",
+    department: student.major  || "N/A",
+    company:    localStorage.getItem("name") || "Your Company",
+    supervisor: supervisorName,
+    startDate:  startDate ? startDate.toLocaleDateString() : "N/A",
+    endDate:    endDate   ? endDate.toLocaleDateString()   : "N/A",
+    totalDays:  totalDays ? `${totalDays} days` : "N/A",
+    status:     app.status,
   };
 };
 
-/* ── buildWeeks ── */
 const buildWeeks = (logs) => {
   if (!logs || logs.length === 0) return [];
   const weeksMap = new Map();
@@ -67,7 +79,6 @@ const buildWeeks = (logs) => {
   return Array.from(weeksMap.values());
 };
 
-/* ── ReportModal ── */
 function ReportModal({ intern, onClose }) {
   const [hoursCompleted, setHoursCompleted] = useState(String(intern.totalHours || 160));
   const [rating,         setRating]         = useState(0);
@@ -163,9 +174,38 @@ function ReportModal({ intern, onClose }) {
                 <label className="rpt-label">Total Hours Completed</label>
                 <input type="text" className="rpt-input" value={hoursCompleted} onChange={e => setHoursCompleted(e.target.value)} />
               </div>
-              <div className="rpt-field"><label className="rpt-label">Total Days</label><div className="rpt-value">—</div></div>
+              <div className="rpt-field"><label className="rpt-label">Total Days</label><div className="rpt-value">{intern.totalDays}</div></div>
             </div>
           </div>
+
+          {intern.weeks && intern.weeks.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <h4 style={{ fontWeight: 700, marginBottom: 12 }}>Weekly Training Logbook</h4>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: "#f5f4f1" }}>
+                    {["Week","Day","Date","Tasks Completed","Hours","Feedback"].map(h => (
+                      <th key={h} style={{ padding: "8px 6px", textAlign: "left", borderBottom: "1px solid #e0e0e0", fontWeight: 600 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {intern.weeks.map((week, wi) =>
+                    week.entries.map((entry, ei) => (
+                      <tr key={`${wi}-${ei}`} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                        <td style={{ padding: "6px", color: "#6c47ff", fontWeight: ei === 0 ? 700 : 400 }}>{ei === 0 ? week.label : ""}</td>
+                        <td style={{ padding: "6px" }}>{entry.day}</td>
+                        <td style={{ padding: "6px" }}>{entry.date}</td>
+                        <td style={{ padding: "6px" }}>{entry.task}</td>
+                        <td style={{ padding: "6px" }}>{entry.hours}h</td>
+                        <td style={{ padding: "6px", fontStyle: "italic", color: "#888" }}>{entry.feedback}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <div className="rpt-rating-section">
             <label className="rpt-label">Final Rating *</label>
@@ -194,7 +234,6 @@ function ReportModal({ intern, onClose }) {
 
         <div className="rpt-footer">
           <button className="rpt-btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="rpt-btn-print" onClick={() => window.print()}><FaPrint size={12} /> Print</button>
           <button className="rpt-btn-send" onClick={handleSendReport} disabled={sending}>
             {sending ? "Sending..." : "✓ Save & Send to University"}
           </button>
@@ -204,49 +243,49 @@ function ReportModal({ intern, onClose }) {
   );
 }
 
-/* ── CreateReportModal ── */
 function CreateReportModal({ onClose }) {
-  const [applicationId,  setApplicationId]  = useState("");
-  const [appData,        setAppData]        = useState(null);
-  const [logsData,       setLogsData]       = useState(null);
-  const [loadingApp,     setLoadingApp]     = useState(false);
-  const [rating,         setRating]         = useState(0);
-  const [hoverRating,    setHoverRating]    = useState(0);
-  const [perfComments,   setPerfComments]   = useState("");
-  const [otherComments,  setOtherComments]  = useState("");
-  const [hoursCompleted, setHoursCompleted] = useState("160");
-  const [sending,        setSending]        = useState(false);
+  const [applicationId,     setApplicationId]     = useState("");
+  const [realApplicationId, setRealApplicationId] = useState("");
+  const [appData,           setAppData]           = useState(null);
+  const [logsData,          setLogsData]          = useState(null);
+  const [loadingApp,        setLoadingApp]        = useState(false);
+  const [rating,            setRating]            = useState(0);
+  const [hoverRating,       setHoverRating]       = useState(0);
+  const [perfComments,      setPerfComments]      = useState("");
+  const [otherComments,     setOtherComments]     = useState("");
+  const [hoursCompleted,    setHoursCompleted]    = useState("160");
+  const [sending,           setSending]           = useState(false);
 
-  // ✅ جلب بيانات الطلب والـ logs بـ applicationId
   const fetchApplicationData = async () => {
     if (!applicationId.trim()) return;
     setLoadingApp(true);
     setAppData(null);
     setLogsData(null);
     try {
-      const appResponse  = await api(`/applications/${applicationId.trim()}`);
+      const appResponse  = await api(`/applications/by-student-id/${applicationId.trim()}`);
       setAppData(appResponse.application);
+      setRealApplicationId(appResponse.application._id);
 
-      const logsResponse = await api(`/logs/${applicationId.trim()}`);
+      const logsResponse = await api(`/logs/${appResponse.application._id}`);
       setLogsData(logsResponse);
 
       if (logsResponse?.stats?.totalHours) {
         setHoursCompleted(String(logsResponse.stats.totalHours));
       }
     } catch (err) {
-      alert("Application not found: " + err.message);
+      alert("Student not found: " + err.message);
     } finally {
       setLoadingApp(false);
     }
   };
 
   const handleSend = async () => {
-    if (!applicationId.trim()) { alert("Please enter Application ID"); return; }
+    if (!realApplicationId) { alert("Please search for a student first"); return; }
     if (rating === 0) { alert("Please select a final rating"); return; }
     setSending(true);
     try {
       await reportsApi.create({
-        applicationId:      applicationId.trim(),
+        applicationId:      realApplicationId,
         attendanceRate:     100,
         overallRating:      rating,
         performanceSummary: perfComments,
@@ -275,34 +314,29 @@ function CreateReportModal({ onClose }) {
             <FaPlus className="rpt-head-icon" />
             <div>
               <h2 className="rpt-head-title">Create Final Report</h2>
-              <p className="rpt-head-sub">Enter the Application ID to load student data automatically.</p>
+              <p className="rpt-head-sub">Enter the Student ID to load data automatically.</p>
             </div>
           </div>
           <button className="rpt-close" onClick={onClose}>✕</button>
         </div>
 
         <div className="rpt-body">
-          {/* ✅ Search بـ applicationId */}
           <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
             <input
               type="text"
               className="rpt-input"
-              placeholder="Enter Application ID"
+              placeholder="Enter Student ID (e.g. 20210001)"
               value={applicationId}
               onChange={e => setApplicationId(e.target.value)}
               onKeyDown={e => e.key === "Enter" && fetchApplicationData()}
               style={{ flex: 1 }}
             />
-            <button
-              onClick={fetchApplicationData}
-              disabled={loadingApp}
-              style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: "#6c47ff", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 13 }}
-            >
+            <button onClick={fetchApplicationData} disabled={loadingApp}
+              style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: "#6c47ff", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>
               {loadingApp ? "Loading..." : "Search"}
             </button>
           </div>
 
-          {/* ✅ بيانات الطالب بعد الـ Search */}
           {appData && (
             <>
               <div className="rpt-form">
@@ -338,7 +372,6 @@ function CreateReportModal({ onClose }) {
                 </div>
               </div>
 
-              {/* ✅ جدول السجلات الأسبوعية */}
               {weeks.length > 0 && (
                 <div style={{ marginBottom: 24 }}>
                   <h4 style={{ fontWeight: 700, marginBottom: 12 }}>Weekly Training Logbook</h4>
@@ -412,7 +445,6 @@ function CreateReportModal({ onClose }) {
   );
 }
 
-/* ── Page ── */
 export default function CompletionReports() {
   const [selected,   setSelected]   = useState(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -426,7 +458,19 @@ export default function CompletionReports() {
     setError("");
     try {
       const response = await reportsApi.companyReports();
-      setReady((response.needsReport?.list   || []).map(app => mapIntern(app, "needsReport")));
+      const needsList = response.needsReport?.list || [];
+      const readyWithLogs = await Promise.all(needsList.map(async (app) => {
+        const intern = mapIntern(app, "needsReport");
+        try {
+          const logsData = await api(`/logs/${app._id}`);
+          intern.weeks      = buildWeeks(logsData?.logs || []);
+          intern.totalHours = logsData?.stats?.totalHours || 160;
+        } catch {
+          intern.weeks = [];
+        }
+        return intern;
+      }));
+      setReady(readyWithLogs);
       setPending((response.reportsReady?.list || []).map(app => mapIntern(app, "reportsReady")));
     } catch (err) {
       setError(err.message);
@@ -455,7 +499,6 @@ export default function CompletionReports() {
         </button>
       </div>
 
-      {/* Ready for Report */}
       <div className="cr-section">
         <div className="cr-section-head">
           <FaCheckCircle className="cr-section-icon cr-icon-ready" />
@@ -482,7 +525,6 @@ export default function CompletionReports() {
         </div>
       </div>
 
-      {/* Reports Sent */}
       <div className="cr-section">
         <div className="cr-section-head">
           <FaExclamationCircle className="cr-section-icon cr-icon-pending" />
@@ -509,8 +551,8 @@ export default function CompletionReports() {
         </div>
       </div>
 
-      {selected    && <ReportModal        intern={selected} onClose={() => setSelected(null)} />}
-      {showCreate  && <CreateReportModal               onClose={() => setShowCreate(false)} />}
+      {selected   && <ReportModal intern={selected} onClose={() => setSelected(null)} />}
+      {showCreate && <CreateReportModal onClose={() => setShowCreate(false)} />}
     </div>
   );
 }
