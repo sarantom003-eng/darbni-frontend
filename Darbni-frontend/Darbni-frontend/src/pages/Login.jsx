@@ -121,7 +121,6 @@ function Login() {
       <div className="login-page">
         <div className="login-card">
           <h1 className="login-title">Welcome Back</h1>
-          <p className="login-sub">Sign in with your email — your role is detected automatically</p>
           {apiError && <div className="contact-success" style={{ background: "#ffecec", color: "#b00020" }}>{apiError}</div>}
 
           {/* Email */}
@@ -200,14 +199,7 @@ function Login() {
             {loading ? "Signing in..." : btnError ? "Fix errors above" : "Sign In"}
           </button>
 
-          <div className="login-info-box">
-            <p>How does role detection work?</p>
-            <ul>
-              <li><strong>University email</strong> (e.g. @students.ptuk.edu.ps) → Student</li>
-              <li><strong>Staff email</strong> (e.g. @ptuk.edu.ps) → University Supervisor</li>
-              <li><strong>Other email</strong> (e.g. @company.com) → Company</li>
-            </ul>
-          </div>
+       
 
           <div className="login-signup-row">
             Don't have an account? <Link to="/register">Sign Up</Link>
