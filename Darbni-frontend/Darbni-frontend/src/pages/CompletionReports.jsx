@@ -29,21 +29,22 @@ const mapIntern = (app, type) => {
     : null;
   const totalDays = training.duration_weeks ? training.duration_weeks * 7 : null;
 
-  return {
-    id:         app._id,
-    name:       fullName,
-    initials:   firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
-    color:      ["#7c5cbf","#e67e22","#27ae60","#e74c3c","#3498db"][firstName.charCodeAt(0) % 5 || 0],
-    studentId:  student.studentID || "N/A",
-    university: student.university_name || student.universityId?.name || "Unknown",
-    internship: training.title || "Unknown Training",
-    department: student.major  || "N/A",
-    company:    localStorage.getItem("name") || "Your Company",
-    supervisor: supervisorName,
-    startDate:  startDate ? startDate.toLocaleDateString() : "N/A",
-    endDate:    endDate   ? endDate.toLocaleDateString()   : "N/A",
-    totalDays:  totalDays ? `${totalDays} days` : "N/A",
-    status:     app.status,
+ return {
+    id:                app._id,
+    name:              fullName,
+    initials:          firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
+    color:             ["#7c5cbf","#e67e22","#27ae60","#e74c3c","#3498db"][firstName.charCodeAt(0) % 5 || 0],
+    studentId:         student.studentID || "N/A",
+    university:        student.university_name || student.universityId?.name || "Unknown",
+    internship:        training.title || "Unknown Training",
+    department:        student.major  || "N/A",
+    company:           localStorage.getItem("name") || "Your Company",
+    supervisor:        supervisorName,
+    startDate:         startDate ? startDate.toLocaleDateString() : "N/A",
+    endDate:           endDate   ? endDate.toLocaleDateString()   : "N/A",
+    totalDays:         totalDays ? `${totalDays} days` : "N/A",
+    status:            app.status,
+    officialLetterDate: app.officialLetter?.letterDate || app.submittedToUniversityAt || null,
   };
 };
 
