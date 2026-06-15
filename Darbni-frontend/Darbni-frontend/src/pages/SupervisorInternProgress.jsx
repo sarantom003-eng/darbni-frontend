@@ -310,7 +310,6 @@ export default function SupervisorInternProgress() {
                 <div className="sip-card-row1">
                   <span className="sip-cname">{t.name}</span>
                   <span className="sip-cid">{t.idNum}</span>
-                  <span className="sip-cbadge">{t.status === "in_training" ? "In Training" : "Completed"}</span>
                 </div>
                 <div className="sip-card-row2">
                   <span className="sip-cat">@ {t.company} - {t.department}</span>
