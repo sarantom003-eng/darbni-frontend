@@ -313,24 +313,43 @@ function ApplicationModal({ app, onClose }) {
         </div>
 
         <div className="ra-modal-workflow">
-          <div className="ra-workflow-title">Application Workflow</div>
-          <div className="ra-workflow-step">
-            <div className="ra-step-icon ra-step-success"><FaBuilding /></div>
-            <div className="ra-step-text">Company Approval</div>
-            <div className="ra-step-badge ra-badge-success"><FaCheck /> Approved</div>
-          </div>
-          <div className="ra-workflow-line"></div>
-          <div className="ra-workflow-step">
-            <div className={`ra-step-icon ${app.status === "pending_university" ? "ra-step-pending" : "ra-step-success"}`}>
-              <FaGraduationCap />
-            </div>
-            <div className="ra-step-text">University Review</div>
-            <div className={`ra-step-badge ${app.status === "pending_university" ? "ra-badge-pending" : "ra-badge-success"}`}>
-              {app.status === "pending_university" ? <><FaClock /> Pending</> : <><FaCheck /> Done</>}
-            </div>
-          </div>
-        </div>
+  <div className="ra-workflow-title">Application Workflow</div>
 
+  {/* Company Approval Step */}
+  <div className="ra-workflow-step">
+    <div className="ra-step-icon ra-step-success"><FaBuilding /></div>
+    <div className="ra-step-text">Company Approval</div>
+    <div className="ra-step-badge ra-badge-success">
+      <FaCheck /> Approved
+    </div>
+  </div>
+
+  <div className="ra-workflow-line"></div>
+
+  {/* University Review Step — يتغير حسب الحالة الفعلية */}
+  <div className="ra-workflow-step">
+    <div className={`ra-step-icon ${
+      app.status === "university_rejected" ? "ra-step-danger" :
+      app.status === "auto_cancelled"      ? "ra-step-danger" :
+      app.status === "pending_university"  ? "ra-step-pending" :
+      "ra-step-success"
+    }`}>
+      <FaGraduationCap />
+    </div>
+    <div className="ra-step-text">University Review</div>
+    <div className={`ra-step-badge ${
+      app.status === "university_rejected" ? "ra-badge-danger" :
+      app.status === "auto_cancelled"      ? "ra-badge-danger" :
+      app.status === "pending_university"  ? "ra-badge-pending" :
+      "ra-badge-success"
+    }`}>
+      {app.status === "university_rejected" ? <><FaTimes /> Rejected</>  :
+       app.status === "auto_cancelled"      ? <><FaBan />   Cancelled</> :
+       app.status === "pending_university"  ? <><FaClock /> Pending</>   :
+       <><FaCheck /> Approved</>}
+    </div>
+  </div>
+</div>
         <div className="ra-modal-footer">
           <button className="ra-btn-close" onClick={onClose}>Close</button>
         </div>
