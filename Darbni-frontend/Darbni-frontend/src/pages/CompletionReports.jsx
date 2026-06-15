@@ -31,6 +31,7 @@ const mapIntern = (app, type) => {
 
   return {
     id:                 app._id,
+    applicationId:      app.applicationId?._id || app.applicationId || app._id,
     name:               fullName,
     initials:           firstName ? `${firstName[0]}${lastName?.[0] || ""}` : "??",
     color:              ["#7c5cbf","#e67e22","#27ae60","#e74c3c","#3498db"][firstName.charCodeAt(0) % 5 || 0],
@@ -495,7 +496,8 @@ function ViewReportModal({ intern, onClose }) {
   useEffect(() => {
     const fetchReport = async () => {
       try {
-        const res = await api(`/reports/${intern.id}`);
+        // ← التعديل هون: بنستخدم applicationId بدل id
+        const res = await api(`/reports/${intern.applicationId || intern.id}`);
         setReportData(res);
       } catch (err) {
         alert("Failed to load report: " + err.message);
