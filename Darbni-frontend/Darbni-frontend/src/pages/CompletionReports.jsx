@@ -87,8 +87,9 @@ function ReportModal({ intern, onClose }) {
   const [otherComments,  setOtherComments]  = useState("");
   const [sending,        setSending]        = useState(false);
 
-  const letterDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-
+const letterDate = intern.submittedToUniversityAt
+  ? new Date(intern.submittedToUniversityAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+  : new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   const handleSendReport = async () => {
     if (rating === 0) { alert("Please select a final rating"); return; }
     setSending(true);
