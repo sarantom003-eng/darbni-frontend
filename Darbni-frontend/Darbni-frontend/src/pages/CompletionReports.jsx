@@ -491,6 +491,172 @@ function CreateReportModal({ onClose }) {
       </div>
     </div>
   );
+
+function ViewReportModal({ intern, onClose }) {
+  const [reportData, setReportData] = useState(null);
+  const [loading,    setLoading]    = useState(true);
+
+  useEffect(() => {
+    const fetchReport = async () => {
+      try {
+        const res = await api(`/reports/${intern.id}`);
+        setReportData(res);
+      } catch (err) {
+        alert("Failed to load report: " + err.message);
+        onClose();
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReport();
+  }, [intern.id]);
+
+  if (loading) return (
+    <div className="rpt-overlay" onClick={onClose}>
+      <div className="rpt-modal" onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200 }}>
+        <p>Loading report...</p>
+      </div>
+    </div>
+  );
+
+  const report = reportData?.report;
+  const letterDate = report?.report_date
+    ? new Date(report.report_date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+  const weeks = buildWeeks(reportData?.logs || []);
+
+  return (
+    <div className="rpt-overlay" onClick={onClose}>
+      <div className="rpt-modal" onClick={e => e.stopPropagation()}>
+        <div className="rpt-head">
+          <div className="rpt-head-left">
+            <FaFileAlt className="rpt-head-icon" />
+            <div>
+              <h2 className="rpt-head-title">Final Training Report</h2>
+              <p className="rpt-head-sub">Report sent to university.</p>
+            </div>
+          </div>
+          <button className="rpt-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="rpt-body">
+          <div className="rpt-letter">
+            <div className="rpt-letter-header">
+              <img src="/ptu-banner.png" alt="University" className="rpt-letter-banner" />
+            </div>
+            <div className="rpt-letter-date">{letterDate} &emsp; التاريخ :</div>
+            <div className="rpt-letter-to">حضرة السادة : <strong>{intern.company}</strong>. المحترمين</div>
+            <div className="rpt-letter-subject">
+              <strong>الموضوع : التدريب الميداني</strong><br />
+              <strong>تخصص : {intern.department}</strong>
+            </div>
+            <div className="rpt-letter-greeting">تحية طيبة وبعد...</div>
+            <p className="rpt-letter-body">
+              أرجو من حضرتكم التكرم بالسماح للطالب/ة <strong>{intern.name}</strong> بالتدرب في مؤسستكم الموقرة...
+            </p>
+            <div className="rpt-letter-closing">وتفضلوا بقبول فائق الاحترام..</div>
+            <div className="rpt-letter-signature">
+              <div>مسؤول التدريب : <strong>{intern.supervisor}</strong></div>
+              <div className="rpt-letter-sig-uni">{intern.university}</div>
+            </div>
+          </div>
+
+          <div className="rpt-eval-header">
+            <h3 className="rpt-eval-title">Final Training Report — Company Evaluation</h3>
+            <p className="rpt-eval-sub">Submitted to university</p>
+          </div>
+
+          <div className="rpt-form">
+            <div className="rpt-field-row">
+              <div className="rpt-field"><label className="rpt-label">Student Name</label><div className="rpt-value">{intern.name}</div></div>
+              <div className="rpt-field"><label className="rpt-label">University ID</label><div className="rpt-value">{intern.studentId}</div></div>
+            </div>
+            <div className="rpt-field-row">
+              <div className="rpt-field"><label className="rpt-label">University</label><div className="rpt-value">{intern.university}</div></div>
+              <div className="rpt-field"><label className="rpt-label">Training Title</label><div className="rpt-value">{intern.internship}</div></div>
+            </div>
+            <div className="rpt-field-row">
+              <div className="rpt-field"><label className="rpt-label">Company</label><div className="rpt-value">{intern.company}</div></div>
+              <div className="rpt-field"><label className="rpt-label">Training Supervisor</label><div className="rpt-value">{intern.supervisor}</div></div>
+            </div>
+            <div className="rpt-field-row">
+              <div className="rpt-field"><label className="rpt-label">Start Date</label><div className="rpt-value">{intern.startDate}</div></div>
+              <div className="rpt-field"><label className="rpt-label">End Date</label><div className="rpt-value">{intern.endDate}</div></div>
+            </div>
+            <div className="rpt-field-row">
+              <div className="rpt-field"><label className="rpt-label">Total Hours</label><div className="rpt-value">{report?.totalHours || "—"}</div></div>
+              <div className="rpt-field"><label className="rpt-label">Total Days</label><div className="rpt-value">{intern.totalDays}</div></div>
+            </div>
+          </div>
+
+          {weeks.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <h4 style={{ fontWeight: 700, marginBottom: 12 }}>Weekly Training Logbook</h4>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: "#f5f4f1" }}>
+                    {["Week","Day","Date","Tasks Completed","Hours","Feedback"].map(h => (
+                      <th key={h} style={{ padding: "8px 6px", textAlign: "left", borderBottom: "1px solid #e0e0e0", fontWeight: 600 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {weeks.map((week, wi) =>
+                    week.entries.map((entry, ei) => (
+                      <tr key={`${wi}-${ei}`} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                        <td style={{ padding: "6px", color: "#6c47ff", fontWeight: ei === 0 ? 700 : 400 }}>{ei === 0 ? week.label : ""}</td>
+                        <td style={{ padding: "6px" }}>{entry.day}</td>
+                        <td style={{ padding: "6px" }}>{entry.date}</td>
+                        <td style={{ padding: "6px" }}>{entry.task}</td>
+                        <td style={{ padding: "6px" }}>{entry.hours}h</td>
+                        <td style={{ padding: "6px", fontStyle: "italic", color: "#888" }}>{entry.feedback}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="rpt-rating-section">
+            <label className="rpt-label">Final Rating</label>
+            <div className="rpt-stars">
+              {[1,2,3,4,5].map(star => (
+                <FaStar key={star} size={28}
+                  className={`rpt-star ${star <= (report?.overallRating || 0) ? "rpt-star-filled" : "rpt-star-empty"}`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {report?.performanceSummary && (
+            <div className="rpt-comment-section">
+              <label className="rpt-label">Comments on Student's Performance</label>
+              <div style={{ padding: "10px 12px", background: "#f9f9f9", borderRadius: 8, fontSize: 14 }}>
+                {report.performanceSummary}
+              </div>
+            </div>
+          )}
+
+          {report?.additionalFeedback && (
+            <div className="rpt-comment-section">
+              <label className="rpt-label">Other Comments</label>
+              <div style={{ padding: "10px 12px", background: "#f9f9f9", borderRadius: 8, fontSize: 14 }}>
+                {report.additionalFeedback}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="rpt-footer">
+          <button className="rpt-btn-cancel" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 }
 export default function CompletionReports() {
   const [selected,   setSelected]   = useState(null);
@@ -499,6 +665,7 @@ export default function CompletionReports() {
   const [pending,    setPending]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState("");
+  const [selectedPending, setSelectedPending] = useState(null);
 
   const loadReports = async () => {
     setLoading(true);
@@ -583,7 +750,10 @@ export default function CompletionReports() {
         <div className="cr-list">
           {pending.length === 0 && <div style={{ color: "#aaa", padding: 20 }}>No reports sent yet.</div>}
           {pending.map(intern => (
-            <div key={intern.id} className="cr-card cr-card-pending">
+            <div key={intern.id} className="cr-card cr-card-pending"
+  onClick={() => setSelectedPending(intern)}
+  style={{ cursor: "pointer" }}
+>
               <div className="cr-avatar" style={{ background: intern.color }}>{intern.initials}</div>
               <div className="cr-card-info">
                 <span className="cr-card-name">{intern.name}</span>
@@ -600,6 +770,7 @@ export default function CompletionReports() {
 
       {selected   && <ReportModal intern={selected} onClose={() => setSelected(null)} />}
       {showCreate && <CreateReportModal onClose={() => setShowCreate(false)} />}
+        {selectedPending && <ViewReportModal intern={selectedPending} onClose={() => setSelectedPending(null)} />}
     </div>
   );
 }
