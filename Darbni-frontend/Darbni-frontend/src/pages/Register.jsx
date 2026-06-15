@@ -3,7 +3,18 @@ import { useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { authApi, saveSession } from "../api/client";
 
-
+const UNIVERSITIES = [
+  { name: "Palestine Technical University – Kadoorie", studentDomain: "@students.ptuk.edu.ps", staffDomain: "@ptuk.edu.ps", home: true },
+  { name: "An-Najah National University",             studentDomain: "@students.najah.edu",    staffDomain: "@najah.edu" },
+  { name: "Birzeit University",                       studentDomain: "@students.birzeit.edu",  staffDomain: "@birzeit.edu" },
+  { name: "Bethlehem University",                     studentDomain: "@students.bethlehem.edu",staffDomain: "@bethlehem.edu" },
+  { name: "Palestine Polytechnic University",         studentDomain: "@students.ppu.edu",      staffDomain: "@ppu.edu" },
+  { name: "Hebron University",                        studentDomain: "@students.hebron.edu",   staffDomain: "@hebron.edu" },
+  { name: "Al-Quds Open University",                  studentDomain: "@students.qou.edu",      staffDomain: "@qou.edu" },
+  { name: "Arab American University",                 studentDomain: "@students.aaup.edu",     staffDomain: "@aaup.edu" },
+  { name: "Al-Quds University",                       studentDomain: "@students.alquds.edu",   staffDomain: "@alquds.edu" },
+  { name: "Al-Istiqlal University",                   studentDomain: "@students.pass.ps",      staffDomain: "@pass.ps" },
+];
 
 const detectRoleFromEmail = (email) => {
   const e = email.toLowerCase().trim();
