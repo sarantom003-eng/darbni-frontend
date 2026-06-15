@@ -540,27 +540,7 @@ export default function Register() {
 
           </form>
 
-          {/* Universities List */}
-          <div className="reg-unis">
-            <div className="reg-unis-title">
-              <span>🎓</span> Supported Palestinian Universities
-            </div>
-            {UNIVERSITIES.map((uni, i) => (
-              <div key={i} className="reg-uni-item">
-                <span className="reg-uni-dot">•</span>
-                <div>
-                  <span className="reg-uni-name">{uni.name}</span>
-                  {uni.home && <span className="reg-uni-badge">Home university — full access</span>}
-                  <div className="reg-uni-domains">
-                    Students: {uni.studentDomain} · Staff: {uni.staffDomain}
-                  </div>
-                </div>
-              </div>
-            ))}
-            <p className="reg-unis-note">
-              ⓘ Students from non-PTUK universities can register but have view-only access. Other emails register as a company (pending supervisor approval).
-            </p>
-          </div>
+         
 
           <div className="reg-signin">
             Already have an account? <Link to="/login">Sign In</Link>
