@@ -184,25 +184,6 @@ export default function AdminSettings() {
         </div>
       </div>
 
-      <div className="as-card" style={{ background: "#fff8f0", borderColor: "#fed7aa" }}>
-        <h2 className="as-section-title">⚠ System</h2>
-        <div className="as-toggle-row">
-          <div>
-            <strong>Maintenance Mode</strong>
-            <p>Hide platform from non-admin users</p>
-          </div>
-          <Toggle value={maintenance} onChange={setMaintenance} />
-        </div>
-        <p className="as-warning">⚠ Enabling this will prevent all users except Super Admin from accessing the platform</p>
-        {maintenance && (
-          <div className="as-field" style={{ marginTop: 16 }}>
-            <label>Maintenance Message</label>
-            <textarea className="as-inp" rows={3} value={maintMsg} onChange={e => setMaintMsg(e.target.value)} />
-            <p className="as-hint">This message will be shown to all users during maintenance</p>
-          </div>
-        )}
-      </div>
-
       {saved && <div className="au-toast">✓ Settings saved successfully!</div>}
 
       <button className="as-save-all-btn" onClick={handleSave} disabled={saving}>
