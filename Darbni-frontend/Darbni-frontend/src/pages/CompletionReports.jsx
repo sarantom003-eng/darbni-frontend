@@ -302,9 +302,23 @@ function CreateReportModal({ onClose }) {
     }
   };
 
-  const student  = appData?.studentId  || {};
-  const training = appData?.trainingId || {};
-  const weeks    = buildWeeks(logsData?.logs || []);
+  const student    = appData?.studentId    || {};
+  const training   = appData?.trainingId   || {};
+  const supervisor = appData?.supervisorId || {};
+  const weeks      = buildWeeks(logsData?.logs || []);
+
+  // ✅ بيانات الخطاب
+  const supervisorName = supervisor.firstName
+    ? `${supervisor.firstName} ${supervisor.lastName || ""}`.trim()
+    : "مسؤول التدريب";
+  const universityName = student.university_name || student.universityId?.name || "الجامعة";
+  const company        = localStorage.getItem("name") || "Your Company";
+  const department     = student.major || "N/A";
+  const studentName    = `${student.firstName || ""} ${student.lastName || ""}`.trim() || "الطالب";
+  const totalHoursVal  = training.totalHours || 160;
+  const letterDate     = appData?.submittedToUniversityAt
+    ? new Date(appData.submittedToUniversityAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    : new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
   return (
     <div className="rpt-overlay" onClick={onClose}>
@@ -321,6 +335,7 @@ function CreateReportModal({ onClose }) {
         </div>
 
         <div className="rpt-body">
+          {/* Search */}
           <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
             <input
               type="text"
@@ -339,11 +354,40 @@ function CreateReportModal({ onClose }) {
 
           {appData && (
             <>
+              {/* ✅ الخطاب الرسمي */}
+              <div className="rpt-letter">
+                <div className="rpt-letter-header">
+                  <img src="/ptu-banner.png" alt="University" className="rpt-letter-banner" />
+                </div>
+                <div className="rpt-letter-date">{letterDate} &emsp; التاريخ :</div>
+                <div className="rpt-letter-to">حضرة السادة : <strong>{company}</strong>. المحترمين</div>
+                <div className="rpt-letter-subject">
+                  <strong>الموضوع : التدريب الميداني</strong><br />
+                  <strong>تخصص : {department}</strong>
+                </div>
+                <div className="rpt-letter-greeting">تحية طيبة وبعد...</div>
+                <p className="rpt-letter-body">
+                  أرجو من حضرتكم التكرم بالسماح للطالب/ة <strong>{studentName}</strong> بالتدرب في مؤسستكم الموقرة
+                  أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب ({totalHoursVal}) ساعة تدريبية...
+                </p>
+                <div className="rpt-letter-closing">وتفضلوا بقبول فائق الاحترام..</div>
+                <div className="rpt-letter-signature">
+                  <div>مسؤول التدريب : <strong>{supervisorName}</strong></div>
+                  <div className="rpt-letter-sig-uni">{universityName}</div>
+                </div>
+              </div>
+
+              {/* Form */}
+              <div className="rpt-eval-header">
+                <h3 className="rpt-eval-title">Final Training Report — Company Evaluation</h3>
+                <p className="rpt-eval-sub">To be filled and sent back to the university</p>
+              </div>
+
               <div className="rpt-form">
                 <div className="rpt-field-row">
                   <div className="rpt-field">
                     <label className="rpt-label">Student Name</label>
-                    <div className="rpt-value">{`${student.firstName || ""} ${student.lastName || ""}`.trim() || "N/A"}</div>
+                    <div className="rpt-value">{studentName}</div>
                   </div>
                   <div className="rpt-field">
                     <label className="rpt-label">University ID</label>
@@ -353,7 +397,7 @@ function CreateReportModal({ onClose }) {
                 <div className="rpt-field-row">
                   <div className="rpt-field">
                     <label className="rpt-label">Major</label>
-                    <div className="rpt-value">{student.major || "N/A"}</div>
+                    <div className="rpt-value">{department}</div>
                   </div>
                   <div className="rpt-field">
                     <label className="rpt-label">Training Title</label>
@@ -372,6 +416,7 @@ function CreateReportModal({ onClose }) {
                 </div>
               </div>
 
+              {/* Logbook */}
               {weeks.length > 0 && (
                 <div style={{ marginBottom: 24 }}>
                   <h4 style={{ fontWeight: 700, marginBottom: 12 }}>Weekly Training Logbook</h4>
@@ -405,6 +450,7 @@ function CreateReportModal({ onClose }) {
                 <div style={{ color: "#aaa", padding: "16px 0", fontSize: 13 }}>No training logs found.</div>
               )}
 
+              {/* Rating */}
               <div className="rpt-rating-section">
                 <label className="rpt-label">Final Rating *</label>
                 <div className="rpt-stars">
@@ -444,7 +490,6 @@ function CreateReportModal({ onClose }) {
     </div>
   );
 }
-
 export default function CompletionReports() {
   const [selected,   setSelected]   = useState(null);
   const [showCreate, setShowCreate] = useState(false);
