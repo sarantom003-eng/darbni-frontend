@@ -135,7 +135,7 @@ function ApproveModal({ app, onClose, onApproved, isProcessing, setIsProcessing 
               <div style={{ marginBottom: 16 }}>تحية طيبة وبعد..</div>
               <p style={{ lineHeight: 2, marginBottom: 12 }}>
                 أرجو من حضرتكم التكرم بالسماح للطالب/ة <strong>{studentName}</strong> بالتدرب في مؤسستكم الموقرة
-                أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب ({totalHours}) ساعة تدريبية.
+                أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب (160) ساعة تدريبية.
               </p>
               <p style={{ lineHeight: 2, marginBottom: 20 }}>
                 يرجى من المشرف المباشر عن التدريب لديكم تعبئة نموذج التقييم المرفق بعد انتهاء فترة التدريب.
