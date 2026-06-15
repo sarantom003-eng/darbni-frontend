@@ -99,14 +99,14 @@ function ContactPage() {
             <div className="contact-info-icon">✉</div>
             <div>
               <span>Email</span>
-              <strong>support@darbni.edu.ps</strong>
+              <strong>darbni.platform@outlook.com</strong>
             </div>
           </div>
           <div className="contact-info-card">
             <div className="contact-info-icon">📞</div>
             <div>
               <span>Phone</span>
-              <strong>+970 9 268 0000</strong>
+              <strong>+970 590000000</strong>
             </div>
           </div>
           <div className="contact-info-card">
@@ -126,18 +126,7 @@ function ContactPage() {
         </div>
       </div>
 
-      <div className="contact-faq-box">
-        <div>
-          <h2>Frequently Asked Questions</h2>
-          <p>Find quick answers to common questions about using Darbni.</p>
-        </div>
-        <button
-          className="faq-viewall-btn"
-          onClick={() => navigate("/about")}
-        >
-          View FAQs
-        </button>
-      </div>
+    
 
       <Footer />
     </>
