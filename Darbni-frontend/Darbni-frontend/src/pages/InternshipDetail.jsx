@@ -26,6 +26,8 @@ function mapTraining(data) {
     location: t.city || t.location || t.companyId?.city || "",
     type: (t.training_type || "").replace("in-person", "In-person").replace("online", "Online").replace("hybrid", "Hybrid"),
     duration: `${t.totalHours || 0}h`,
+    startDate: t.startDate ? new Date(t.startDate).toLocaleDateString() : "N/A", // ← هاد
+weeklyHours: t.weeklyHours || 0,
     weeklyHours: t.weeklyHours || 0,
     rating: data.companyRating || 0,
     reviews: data.totalRatings || 0,
@@ -97,6 +99,13 @@ function InternshipDetail() {
           <div className="detail-info-box"><FaMapMarkerAlt className="detail-info-icon" /><div><div className="detail-info-label">Location</div><div className="detail-info-val">{company.location || "—"}</div></div></div>
           <div className="detail-info-box"><FaDesktop className="detail-info-icon" /><div><div className="detail-info-label">Type</div><div className="detail-info-val">{company.type || "—"}</div></div></div>
           <div className="detail-info-box"><FaClock className="detail-info-icon" /><div><div className="detail-info-label">Duration</div><div className="detail-info-val">{company.duration}</div></div></div>
+          <div className="detail-info-row">
+  <div className="detail-info-box"><FaMapMarkerAlt className="detail-info-icon" /><div><div className="detail-info-label">Location</div><div className="detail-info-val">{company.location || "—"}</div></div></div>
+  <div className="detail-info-box"><FaDesktop className="detail-info-icon" /><div><div className="detail-info-label">Type</div><div className="detail-info-val">{company.type || "—"}</div></div></div>
+  <div className="detail-info-box"><FaClock className="detail-info-icon" /><div><div className="detail-info-label">Duration</div><div className="detail-info-val">{company.duration}</div></div></div>
+  <div className="detail-info-box"><FaClock className="detail-info-icon" /><div><div className="detail-info-label">Start Date</div><div className="detail-info-val">{company.startDate}</div></div></div>
+  <div className="detail-info-box"><FaUsers className="detail-info-icon" /><div><div className="detail-info-label">Positions</div><div className="detail-info-val">{company.filled}/{company.total}</div></div></div>
+</div>
           <div className="detail-info-box"><FaUsers className="detail-info-icon" /><div><div className="detail-info-label">Positions</div><div className="detail-info-val">{company.filled}/{company.total}</div></div></div>
         </div>
 
