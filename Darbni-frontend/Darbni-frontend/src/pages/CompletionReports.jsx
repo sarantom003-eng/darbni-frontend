@@ -271,11 +271,41 @@ function CreateReportModal({ onClose }) {
     setAppData(null);
     setLogsData(null);
     try {
-      const appResponse  = await api(`/applications/by-student-id/${applicationId.trim()}`);
-      setAppData(appResponse.application);
-      setRealApplicationId(appResponse.application._id);
+      const appResponse = await api(`/applications/by-student-id/${applicationId.trim()}`);
+      let application = appResponse.application;
 
-      const logsResponse = await api(`/logs/${appResponse.application._id}`);
+      // =====================================================
+      // Fallback: لو الـ training data ناقصة (title/startDate)
+      // من endpoint by-student-id (غير موثّق بالـ API docs)،
+      // نعمل نداء إضافي لـ GET /applications/:id (موثّق رسمياً
+      // وفيه trainingId.title + totalHours populated صحيح)
+      // ونكمّل البيانات الناقصة بس، من غير ما نلمس باقي الكود
+      const trainingIncomplete =
+        !application.trainingId?.title || !application.trainingId?.startDate;
+
+      if (trainingIncomplete && application._id) {
+        try {
+          const fullResponse = await api(`/applications/${application._id}`);
+          const fullApp = fullResponse.application;
+          if (fullApp?.trainingId) {
+            application = {
+              ...application,
+              trainingId: {
+                ...application.trainingId,
+                ...fullApp.trainingId,
+              },
+            };
+          }
+        } catch {
+          // إذا الـ fallback نفسه فشل، نكمل بالبيانات الأصلية كما هي
+        }
+      }
+      // =====================================================
+
+      setAppData(application);
+      setRealApplicationId(application._id);
+
+      const logsResponse = await api(`/logs/${application._id}`);
       setLogsData(logsResponse);
 
       if (logsResponse?.stats?.totalHours) {
