@@ -67,11 +67,14 @@ function RequestModal({ req, onClose, onAccept }) {
           <p className="ur-report-sub">Forwarded by {req.university}</p>
           <h4 className="ur-report-sec">Student Information</h4>
           <div className="ur-report-grid">
-            <Field label="STUDENT NAME"   value={req.name} />
-            <Field label="UNIVERSITY"     value={req.university} />
-            <Field label="TRAINING TITLE" value={req.position} />
-            <Field label="COMPANY"        value={company} />
-            <Field label="START DATE"     value={req.startDate} />
+            <Field label="STUDENT NAME"        value={req.name} />
+            <Field label="UNIVERSITY"          value={req.university} />
+            <Field label="TRAINING TITLE"      value={req.position} />
+            <Field label="COMPANY"             value={company} />
+            <Field label="TRAINING SUPERVISOR" value={req.supervisor} />
+            <Field label="START DATE"          value={req.startDate} />
+            <Field label="END DATE"            value={req.endDate} />
+            <Field label="TOTAL HOURS"         value={req.hours} />
           </div>
         </div>
 
@@ -107,12 +110,24 @@ const mapApplication = (app, statusType) => {
   const lastName  = student.lastName  || "";
   const fullName  = `${firstName} ${lastName}`.trim() || "Unknown Student";
 
-  const supervisorName = app.officialLetter?.supervisorName || "University Supervisor";
+  // =====================================================
+  // التعديل: اسم مدرب الشركة بدل supervisor الجامعة
+  // بيجي من officialForm.trainerName (نفس المنطق المستخدم
+  // في CompletionReports.jsx لأن الـ backend ما بعمل populate
+  // لـ companyId.trainer بالـ response)
+  const supervisorName = app.officialForm?.trainerName || "Not Assigned";
+  // =====================================================
 
   // ✅ التعديل من الصورة
   let displayStatus = "pending";
   if (statusType === "resolved")  displayStatus = "resolved";
   if (statusType === "cancelled") displayStatus = "cancelled";
+
+  // حساب End Date بناء على startDate + duration_weeks (نفس منطق CompletionReports)
+  const startDateObj = training.startDate ? new Date(training.startDate) : null;
+  const endDateObj = startDateObj && training.duration_weeks
+    ? new Date(startDateObj.getTime() + training.duration_weeks * 7 * 24 * 60 * 60 * 1000)
+    : null;
 
   return {
     id:             app._id,
@@ -130,6 +145,9 @@ const mapApplication = (app, statusType) => {
       : "",
     startDate:      training.startDate
       ? new Date(training.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "TBD",
+    endDate:        endDateObj
+      ? endDateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : "TBD",
     hours:          training.totalHours || 160,
     supervisor:     supervisorName,
