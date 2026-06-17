@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FaCheck, FaClock, FaCheckCircle, FaBan, FaTimes } from "react-icons/fa";
-import { applicationApi } from "../api/client";
+import { applicationApi, api } from "../api/client";
 
 function CustomToast({ message, type, onClose }) {
   useEffect(() => {
@@ -123,11 +123,19 @@ const mapApplication = (app, statusType) => {
   if (statusType === "resolved")  displayStatus = "resolved";
   if (statusType === "cancelled") displayStatus = "cancelled";
 
-  // حساب End Date بناء على startDate + duration_weeks (نفس منطق CompletionReports)
-  const startDateObj = training.startDate ? new Date(training.startDate) : null;
+  // =====================================================
+  // التعديل: مصدر تاريخ البداية الصحيح هو trainingStartDate
+  // على مستوى الـ application (موثّق بـ company-final-response)
+  // — تاريخ مؤكد لهذا الطالب بالذات، بعكس training.startDate
+  // العام للفرصة. duration_weeks بيبقى من الـ training (محسوب
+  // مسبقاً من الشركة، موثّق بالدوكس)
+  const startDateObj = app.trainingStartDate
+    ? new Date(app.trainingStartDate)
+    : (training.startDate ? new Date(training.startDate) : null);
   const endDateObj = startDateObj && training.duration_weeks
     ? new Date(startDateObj.getTime() + training.duration_weeks * 7 * 24 * 60 * 60 * 1000)
     : null;
+  // =====================================================
 
   return {
     id:             app._id,
@@ -143,8 +151,8 @@ const mapApplication = (app, statusType) => {
     letterDate:     app.submittedToUniversityAt
       ? new Date(app.submittedToUniversityAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
       : "",
-    startDate:      training.startDate
-      ? new Date(training.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    startDate:      startDateObj
+      ? startDateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : "TBD",
     endDate:        endDateObj
       ? endDateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -169,20 +177,76 @@ export default function UniversityRequests() {
 
   const showToast = (message, type = "error") => setToast({ message, type });
 
+  // =====================================================
+  // Fallback: لو trainingId أو student.universityId ناقصين
+  // من /applications/company (مش كل حقول populated دايماً)،
+  // نجيب البيانات الكاملة من GET /applications/:id (موثّق
+  // رسمياً) ونكمّل الناقص بس، بدون لمس باقي الكود
+  const enrichApplication = async (app) => {
+    const trainingIncomplete =
+      !app.trainingId?.title || !app.trainingId?.startDate;
+    const universityIncomplete =
+      !app.studentId?.university_name && !app.studentId?.universityId?.name;
+
+    let result = app;
+
+    if (trainingIncomplete || universityIncomplete) {
+      try {
+        const fullResponse = await api(`/applications/${app._id}`);
+        const fullApp = fullResponse.application;
+        if (fullApp) {
+          result = {
+            ...app,
+            trainingId: { ...app.trainingId, ...fullApp.trainingId },
+            studentId:  { ...app.studentId,  ...fullApp.studentId },
+          };
+        }
+      } catch {
+        // إذا فشل الـ fallback، نكمل بالبيانات الأصلية
+      }
+    }
+
+    // =====================================================
+    // Fallback إضافي: لو duration_weeks لسا ناقص (مش موثّق
+    // ضمن trainingId بـ /applications/:id)، نجيب الـ training
+    // نفسها من GET /trainings/:id (موثّق وفيها duration_weeks)
+    if (!result.trainingId?.duration_weeks && result.trainingId?._id) {
+      try {
+        const trainingResponse = await api(`/trainings/${result.trainingId._id}`);
+        if (trainingResponse?.training) {
+          result = {
+            ...result,
+            trainingId: { ...result.trainingId, ...trainingResponse.training },
+          };
+        }
+      } catch {
+        // إذا فشل، نكمل بالبيانات الموجودة كما هي
+      }
+    }
+    // =====================================================
+
+    return result;
+  };
+  // =====================================================
+
   // ✅ loadApplications معدلة حسب الصور
   const loadApplications = async () => {
     setLoading(true);
     setError("");
     try {
       const response = await applicationApi.company();
+      const allResolved = response.resolved || [];
+
+      // نكمّل البيانات الناقصة لكل application قبل التصنيف
+      const enrichedResolved = await Promise.all(allResolved.map(enrichApplication));
 
       // ✅ pending = university_approved من resolved
-      const universityPending = (response.resolved || []).filter(
+      const universityPending = enrichedResolved.filter(
         app => app.status === "university_approved"
       );
 
       // ✅ resolved = company_final_approved أو in_training أو completed
-      const universityResolved = (response.resolved || []).filter(
+      const universityResolved = enrichedResolved.filter(
         app =>
           app.status === "company_final_approved" ||
           app.status === "in_training" ||
@@ -190,7 +254,7 @@ export default function UniversityRequests() {
       );
 
       // ✅ cancelled = auto_cancelled
-      const universityCancelled = (response.resolved || []).filter(
+      const universityCancelled = enrichedResolved.filter(
         app => app.status === "auto_cancelled"
       );
 
