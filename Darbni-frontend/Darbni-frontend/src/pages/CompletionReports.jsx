@@ -302,6 +302,29 @@ function CreateReportModal({ onClose }) {
       }
       // =====================================================
 
+      // =====================================================
+      // Fallback إضافي: لو duration_weeks لسا ناقص (الـ training
+      // object من /applications/:id ممكن ما يكون فيه duration_weeks
+      // موثّق ضمنه)، نجيب الـ training نفسها مباشرة من
+      // GET /trainings/:id (موثّق وفيها duration_weeks مضمون)
+      if (!application.trainingId?.duration_weeks && application.trainingId?._id) {
+        try {
+          const trainingResponse = await api(`/trainings/${application.trainingId._id}`);
+          if (trainingResponse?.training) {
+            application = {
+              ...application,
+              trainingId: {
+                ...application.trainingId,
+                ...trainingResponse.training,
+              },
+            };
+          }
+        } catch {
+          // إذا فشل، نكمل بالبيانات الموجودة كما هي
+        }
+      }
+      // =====================================================
+
       setAppData(application);
       setRealApplicationId(application._id);
 
