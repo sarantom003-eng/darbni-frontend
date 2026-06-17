@@ -13,16 +13,18 @@ const reportsApi = {
 const mapIntern = (app, type) => {
   const student    = app.studentId    || {};
   const training   = app.trainingId   || {};
-  const supervisor = app.supervisorId || {};
 
   const firstName = student.firstName || "";
   const lastName  = student.lastName  || "";
   const fullName  = `${firstName} ${lastName}`.trim() || "Unknown Student";
 
-  // supervisor الجامعة — يبقى كما هو للـ ReportModal و ViewReportModal
-  const supervisorName = supervisor.firstName
-    ? `${supervisor.firstName} ${supervisor.lastName || ""}`.trim()
-    : "Not Assigned";
+  // =====================================================
+  // التعديل: اسم مدرب الشركة بدل supervisor الجامعة
+  // بيجي من officialForm.trainerName (نفس المصدر المستخدم
+  // بكل مكان تاني بالتطبيق) — موحّد لكل المودالز التلاتة
+  // (ReportModal, CreateReportModal, ViewReportModal)
+  const supervisorName = app.officialForm?.trainerName || "Not Assigned";
+  // =====================================================
 
   const startDate = training.startDate ? new Date(training.startDate) : null;
   const endDate = startDate && training.duration_weeks
