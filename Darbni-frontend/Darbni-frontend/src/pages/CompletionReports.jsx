@@ -19,6 +19,7 @@ const mapIntern = (app, type) => {
   const lastName  = student.lastName  || "";
   const fullName  = `${firstName} ${lastName}`.trim() || "Unknown Student";
 
+  // supervisor الجامعة — يبقى كما هو للـ ReportModal و ViewReportModal
   const supervisorName = supervisor.firstName
     ? `${supervisor.firstName} ${supervisor.lastName || ""}`.trim()
     : "Not Assigned";
@@ -142,10 +143,9 @@ function ReportModal({ intern, onClose }) {
             </div>
             <div className="rpt-letter-greeting">تحية طيبة وبعد...</div>
             <p className="rpt-letter-body">
-              أرجو من حضرتكم التكرم بالسماح للطالب/ة <strong>{intern.name}</strong>   بالتدرب في مؤسستكم الموقرة  أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب (160) ساعة تدريبية حيث يكون دوام الطالب في مؤسستكم مثل دوام العاملين فيها ولا يحق له التغيب دون إذن رسمي، وسيقدم الطالب المتدرب تقريراً عما اكتسب من مهارات للمحاضر المسؤول عنه في الجامعة في نهاية هذه الفترة.
+              أرجو من حضرتكم التكرم بالسماح للطالب/ة <strong>{intern.name}</strong> بالتدرب في مؤسستكم الموقرة أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب (160) ساعة تدريبية حيث يكون دوام الطالب في مؤسستكم مثل دوام العاملين فيها ولا يحق له التغيب دون إذن رسمي، وسيقدم الطالب المتدرب تقريراً عما اكتسب من مهارات للمحاضر المسؤول عنه في الجامعة في نهاية هذه الفترة.
 
 يرجى من المشرف المباشر عن التدريب لديكم تعبئة نموذج التقييم المرفق ومتابعة حضور الطالب المتدرب من خلال نموذج الحضور والغياب المرفق وذلك بعد انتهاء فترة التدريب.
-
             </p>
             <div className="rpt-letter-closing">وتفضلوا بقبول فائق الاحترام..</div>
             <div className="rpt-letter-signature">
@@ -309,20 +309,30 @@ function CreateReportModal({ onClose }) {
     }
   };
 
-  const student    = appData?.studentId    || {};
-  const training   = appData?.trainingId   || {};
-  const supervisor = appData?.supervisorId || {};
-  const weeks      = buildWeeks(logsData?.logs || []);
+  const student  = appData?.studentId  || {};
+  const training = appData?.trainingId || {};
+  const weeks    = buildWeeks(logsData?.logs || []);
 
-  const supervisorName = supervisor.firstName
-    ? `${supervisor.firstName} ${supervisor.lastName || ""}`.trim()
-    : "مسؤول التدريب";
+  // =====================================================
+  // التعديل: اسم المدرب بيجي من officialForm.trainerName
+  // لأن الـ backend مش بعمل populate لـ companyId.trainer
+  // في response الـ /reports/company
+  // officialForm.trainerName هو الاسم اللي أدخله الطالب وقت التسجيل
+  const supervisorName = appData?.officialForm?.trainerName || "Not Assigned";
+  // =====================================================
+
   const universityName = student.university_name || student.universityId?.name || "الجامعة";
   const company        = localStorage.getItem("name") || "Your Company";
   const department     = student.major || "N/A";
   const studentName    = `${student.firstName || ""} ${student.lastName || ""}`.trim() || "الطالب";
-  const totalHoursVal  = training.totalHours || 160;
-  const letterDate     = appData?.submittedToUniversityAt
+
+  const startDate = training.startDate ? new Date(training.startDate) : null;
+  const endDate   = startDate && training.duration_weeks
+    ? new Date(startDate.getTime() + training.duration_weeks * 7 * 24 * 60 * 60 * 1000)
+    : null;
+  const totalDays = training.duration_weeks ? `${training.duration_weeks * 7} days` : "N/A";
+
+  const letterDate = appData?.submittedToUniversityAt
     ? new Date(appData.submittedToUniversityAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
     : new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
@@ -371,10 +381,9 @@ function CreateReportModal({ onClose }) {
                 </div>
                 <div className="rpt-letter-greeting">تحية طيبة وبعد...</div>
                 <p className="rpt-letter-body">
-                  أرجو من حضرتكم التكرم بالسماح للطالب/ة <strong>{studentName}</strong> بالتدرب في مؤسستكم الموقرة  أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب (160) ساعة تدريبية حيث يكون دوام الطالب في مؤسستكم مثل دوام العاملين فيها ولا يحق له التغيب دون إذن رسمي، وسيقدم الطالب المتدرب تقريراً عما اكتسب من مهارات للمحاضر المسؤول عنه في الجامعة في نهاية هذه الفترة.
+                  أرجو من حضرتكم التكرم بالسماح للطالب/ة <strong>{studentName}</strong> بالتدرب في مؤسستكم الموقرة أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب (160) ساعة تدريبية حيث يكون دوام الطالب في مؤسستكم مثل دوام العاملين فيها ولا يحق له التغيب دون إذن رسمي، وسيقدم الطالب المتدرب تقريراً عما اكتسب من مهارات للمحاضر المسؤول عنه في الجامعة في نهاية هذه الفترة.
 
 يرجى من المشرف المباشر عن التدريب لديكم تعبئة نموذج التقييم المرفق ومتابعة حضور الطالب المتدرب من خلال نموذج الحضور والغياب المرفق وذلك بعد انتهاء فترة التدريب.
-
                 </p>
                 <div className="rpt-letter-closing">وتفضلوا بقبول فائق الاحترام..</div>
                 <div className="rpt-letter-signature">
@@ -401,8 +410,8 @@ function CreateReportModal({ onClose }) {
                 </div>
                 <div className="rpt-field-row">
                   <div className="rpt-field">
-                    <label className="rpt-label">Major</label>
-                    <div className="rpt-value">{department}</div>
+                    <label className="rpt-label">University</label>
+                    <div className="rpt-value">{universityName}</div>
                   </div>
                   <div className="rpt-field">
                     <label className="rpt-label">Training Title</label>
@@ -411,8 +420,39 @@ function CreateReportModal({ onClose }) {
                 </div>
                 <div className="rpt-field-row">
                   <div className="rpt-field">
+                    <label className="rpt-label">Company</label>
+                    <div className="rpt-value">{company}</div>
+                  </div>
+                  <div className="rpt-field">
+                    {/* التعديل: supervisorName بيجي من officialForm.trainerName */}
+                    <label className="rpt-label">Training Supervisor</label>
+                    <div className="rpt-value">{supervisorName}</div>
+                  </div>
+                </div>
+                <div className="rpt-field-row">
+                  <div className="rpt-field">
+                    <label className="rpt-label">Start Date</label>
+                    <div className="rpt-value">{startDate ? startDate.toLocaleDateString() : "N/A"}</div>
+                  </div>
+                  <div className="rpt-field">
+                    <label className="rpt-label">End Date</label>
+                    <div className="rpt-value">{endDate ? endDate.toLocaleDateString() : "N/A"}</div>
+                  </div>
+                </div>
+                <div className="rpt-field-row">
+                  <div className="rpt-field">
                     <label className="rpt-label">Total Hours Completed</label>
                     <input className="rpt-input" value={hoursCompleted} onChange={e => setHoursCompleted(e.target.value)} />
+                  </div>
+                  <div className="rpt-field">
+                    <label className="rpt-label">Total Days</label>
+                    <div className="rpt-value">{totalDays}</div>
+                  </div>
+                </div>
+                <div className="rpt-field-row">
+                  <div className="rpt-field">
+                    <label className="rpt-label">Major</label>
+                    <div className="rpt-value">{department}</div>
                   </div>
                   <div className="rpt-field">
                     <label className="rpt-label">Status</label>
@@ -501,7 +541,6 @@ function ViewReportModal({ intern, onClose }) {
   useEffect(() => {
     const fetchReport = async () => {
       try {
-        // ← التعديل هون: بنستخدم applicationId بدل id
         const res = await api(`/reports/${intern.applicationId || intern.id}`);
         setReportData(res);
       } catch (err) {
@@ -555,10 +594,9 @@ function ViewReportModal({ intern, onClose }) {
             </div>
             <div className="rpt-letter-greeting">تحية طيبة وبعد...</div>
             <p className="rpt-letter-body">
-              أرجو من حضرتكم التكرم بالسماح للطالب/ة <strong>{intern.name}</strong> بالتدرب في مؤسستكم الموقرة  أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب (160) ساعة تدريبية حيث يكون دوام الطالب في مؤسستكم مثل دوام العاملين فيها ولا يحق له التغيب دون إذن رسمي، وسيقدم الطالب المتدرب تقريراً عما اكتسب من مهارات للمحاضر المسؤول عنه في الجامعة في نهاية هذه الفترة.
+              أرجو من حضرتكم التكرم بالسماح للطالب/ة <strong>{intern.name}</strong> بالتدرب في مؤسستكم الموقرة أيام الدوام الرسمي في المؤسسة بحيث ينهي الطالب (160) ساعة تدريبية حيث يكون دوام الطالب في مؤسستكم مثل دوام العاملين فيها ولا يحق له التغيب دون إذن رسمي، وسيقدم الطالب المتدرب تقريراً عما اكتسب من مهارات للمحاضر المسؤول عنه في الجامعة في نهاية هذه الفترة.
 
 يرجى من المشرف المباشر عن التدريب لديكم تعبئة نموذج التقييم المرفق ومتابعة حضور الطالب المتدرب من خلال نموذج الحضور والغياب المرفق وذلك بعد انتهاء فترة التدريب.
-
             </p>
             <div className="rpt-letter-closing">وتفضلوا بقبول فائق الاحترام..</div>
             <div className="rpt-letter-signature">
