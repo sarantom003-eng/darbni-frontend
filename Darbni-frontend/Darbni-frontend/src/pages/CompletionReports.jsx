@@ -13,6 +13,7 @@ const reportsApi = {
 const mapIntern = (app, type) => {
   const student    = app.studentId    || {};
   const training   = app.trainingId   || {};
+  const application = app.applicationId || app;
 
   const firstName = student.firstName || "";
   const lastName  = student.lastName  || "";
@@ -23,15 +24,16 @@ const mapIntern = (app, type) => {
   // بيجي من officialForm.trainerName (نفس المصدر المستخدم
   // بكل مكان تاني بالتطبيق) — موحّد لكل المودالز التلاتة
   // (ReportModal, CreateReportModal, ViewReportModal)
-const universitySupervisor = app.officialLetter?.supervisorName || "Not Assigned";
-const companySupervisor    = app.officialForm?.trainerName       || "Not Assigned";
+const universitySupervisor = application.officialLetter?.supervisorName || "Not Assigned";
+const companySupervisor    = application.officialForm?.trainerName       || "Not Assigned";
   // =====================================================
 
-  const startDate = training.startDate ? new Date(training.startDate) : null;
-  const endDate = startDate && training.duration_weeks
-    ? new Date(startDate.getTime() + training.duration_weeks * 7 * 24 * 60 * 60 * 1000)
-    : null;
-  const totalDays = training.duration_weeks ? training.duration_weeks * 7 : null;
+ const trainingObj = application.trainingId || training;
+const startDate = trainingObj.startDate ? new Date(trainingObj.startDate) : null;
+const endDate = startDate && trainingObj.duration_weeks
+  ? new Date(startDate.getTime() + trainingObj.duration_weeks * 7 * 24 * 60 * 60 * 1000)
+  : null;
+const totalDays = trainingObj.duration_weeks ? trainingObj.duration_weeks * 7 : null;
 
   return {
     id:                 app._id,
@@ -41,7 +43,7 @@ const companySupervisor    = app.officialForm?.trainerName       || "Not Assigne
     color:              ["#7c5cbf","#e67e22","#27ae60","#e74c3c","#3498db"][firstName.charCodeAt(0) % 5 || 0],
     studentId:          student.studentID || "N/A",
     university:         student.university_name || student.universityId?.name || "Unknown",
-    internship:         training.title || "Unknown Training",
+internship: trainingObj.title || "Unknown Training",
     department:         student.major  || "N/A",
     company:            localStorage.getItem("name") || "Your Company",
 supervisor:        universitySupervisor, // للخطاب
