@@ -40,17 +40,18 @@ const buildWeeksFromLogs = (logs) => {
     const week = weeksMap.get(weekKey);
     week.totalHours += log.hours;
     week.days++;
-    week.entries.push({
-      logId:    log._id,
-      day:      date.toLocaleDateString("en-US", { weekday: "long" }),
-      date:     date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      task:     log.tasks_completed,
-      hours:    log.hours,
-      status:   log.status,
-      feedback: log.company_feedback || "",
-    });
-    week.entries.sort((a, b) => new Date(a.date) - new Date(b.date));
-  });
+ week.entries.push({
+  logId:    log._id,
+  rawDate:  log.log_date,
+  day:      date.toLocaleDateString("en-US", { weekday: "long" }),
+  date:     date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+  task:     log.tasks_completed,
+  hours:    log.hours,
+  status:   log.status,
+  feedback: log.company_feedback || "",
+});
+week.entries.sort((a, b) => new Date(a.rawDate) - new Date(b.rawDate));
+});
 
   return Array.from(weeksMap.values());
 };

@@ -382,12 +382,20 @@ export default function TrainingLogbook() {
               </div>
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: "#444" }}>Date</label>
-                <input
-                  type="date"
-                  value={fDate}
-                  onChange={e => setFDate(e.target.value)}
-                  style={getInpStyle(fDate, formErr)}
-                />
+             <input
+  type="date"
+  value={fDate}
+  onChange={e => {
+    const selected = new Date(e.target.value);
+    const day = selected.getDay(); // 0=Sunday, 5=Friday, 6=Saturday
+    if (day === 5 || day === 6) {
+      showToast("Invalid Day", "Please select Sunday through Thursday only.");
+      return;
+    }
+    setFDate(e.target.value);
+  }}
+  style={getInpStyle(fDate, formErr)}
+/>
               </div>
             </div>
 
