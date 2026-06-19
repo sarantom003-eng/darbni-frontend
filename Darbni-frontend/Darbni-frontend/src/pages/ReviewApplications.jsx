@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   FaClock, FaEye, FaCheck, FaTimes, FaGraduationCap,
   FaPaperPlane, FaExclamationTriangle, FaBuilding,
-  FaSpinner, FaBan, FaPrint, FaArrowRight, FaArrowLeft
+  FaSpinner, FaBan, FaArrowRight, FaArrowLeft
 } from "react-icons/fa";
 import { applicationApi } from "../api/client";
 
@@ -118,7 +118,7 @@ function ApproveModal({ app, onClose, onApproved, isProcessing, setIsProcessing 
         </div>
 
         {step === 1 && (
-          <div id="print-area">
+          <div>
             <div style={{ border: "1px solid #e0e0e0", borderRadius: 8, padding: 32, background: "#fafafa", fontFamily: "Arial, sans-serif", direction: "rtl" }}>
               <div style={{ textAlign: "center", marginBottom: 24 }}>
                 <img src="/ptu-banner.png" alt="University Banner" style={{ maxWidth: "100%", height: "auto" }} onError={e => { e.target.style.display = "none"; }} />
@@ -151,7 +151,7 @@ function ApproveModal({ app, onClose, onApproved, isProcessing, setIsProcessing 
         )}
 
         {step === 2 && (
-          <div id="print-area">
+          <div>
             <div style={{ border: "1px solid #e0e0e0", borderRadius: 8, padding: 28, background: "#fafafa", fontFamily: "Arial, sans-serif" }}>
               <div style={{ textAlign: "center", marginBottom: 20 }}>
                 <img src="/ptu-banner.png" alt="University Banner" style={{ maxWidth: "100%", height: "auto" }} onError={e => { e.target.style.display = "none"; }} />
@@ -210,9 +210,6 @@ function ApproveModal({ app, onClose, onApproved, isProcessing, setIsProcessing 
                 <FaArrowLeft size={12} /> Back
               </button>
             )}
-            <button onClick={() => window.print()} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 8, border: "1px solid #e0e0e0", background: "#fff", cursor: "pointer", fontSize: 13 }}>
-              <FaPrint size={12} /> Print
-            </button>
             {step === 1 && (
               <button onClick={() => setStep(2)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 8, border: "none", background: "#6c47ff", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
                 Next <FaArrowRight size={12} />
