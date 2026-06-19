@@ -71,7 +71,7 @@ function RequestModal({ req, onClose, onAccept }) {
             <Field label="UNIVERSITY"          value={req.university} />
             <Field label="TRAINING TITLE"      value={req.position} />
             <Field label="COMPANY"             value={company} />
-            <Field label="TRAINING SUPERVISOR" value={req.supervisor} />
+            <Field label="TRAINING SUPERVISOR" value={req.trainingSupervisor} />
             <Field label="START DATE"          value={req.startDate} />
             <Field label="END DATE"            value={req.endDate} />
             <Field label="TOTAL HOURS"         value={req.hours} />
@@ -115,8 +115,9 @@ const mapApplication = (app, statusType) => {
   // بيجي من officialForm.trainerName (نفس المنطق المستخدم
   // في CompletionReports.jsx لأن الـ backend ما بعمل populate
   // لـ companyId.trainer بالـ response)
-  const supervisorName = app.officialForm?.trainerName || "Not Assigned";
-  // =====================================================
+const universitySupervisorName = app.officialLetter?.supervisorName || "Not Assigned"; // مشرف الجامعة للخطاب
+const companySupervisorName    = app.officialForm?.trainerName       || "Not Assigned"; // مشرف الشركة للتفاصيل  
+// =====================================================
 
   // ✅ التعديل من الصورة
   let displayStatus = "pending";
@@ -158,7 +159,8 @@ const mapApplication = (app, statusType) => {
       ? endDateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : "TBD",
     hours:          training.totalHours || 160,
-    supervisor:     supervisorName,
+    supervisor:     universitySupervisorName,
+    trainingSupervisor: companySupervisorName,   // للتفاصيل
     status:         displayStatus,
     rawStatus:      app.status,
   };
