@@ -23,7 +23,8 @@ const mapIntern = (app, type) => {
   // بيجي من officialForm.trainerName (نفس المصدر المستخدم
   // بكل مكان تاني بالتطبيق) — موحّد لكل المودالز التلاتة
   // (ReportModal, CreateReportModal, ViewReportModal)
-  const supervisorName = app.officialForm?.trainerName || "Not Assigned";
+const universitySupervisor = app.officialLetter?.supervisorName || "Not Assigned";
+const companySupervisor    = app.officialForm?.trainerName       || "Not Assigned";
   // =====================================================
 
   const startDate = training.startDate ? new Date(training.startDate) : null;
@@ -43,7 +44,8 @@ const mapIntern = (app, type) => {
     internship:         training.title || "Unknown Training",
     department:         student.major  || "N/A",
     company:            localStorage.getItem("name") || "Your Company",
-    supervisor:         supervisorName,
+supervisor:        universitySupervisor, // للخطاب
+trainingSupervisor: companySupervisor,   // للحقول
     startDate:          startDate ? startDate.toLocaleDateString() : "N/A",
     endDate:            endDate   ? endDate.toLocaleDateString()   : "N/A",
     totalDays:          totalDays ? `${totalDays} days` : "N/A",
@@ -172,7 +174,10 @@ function ReportModal({ intern, onClose }) {
             </div>
             <div className="rpt-field-row">
               <div className="rpt-field"><label className="rpt-label">Company</label><div className="rpt-value">{intern.company}</div></div>
-              <div className="rpt-field"><label className="rpt-label">Training Supervisor</label><div className="rpt-value">{intern.supervisor}</div></div>
+              <div className="rpt-field">
+                <label className="rpt-label">Training Supervisor</label>
+                <div className="rpt-value">{intern.trainingSupervisor}</div>
+              </div>
             </div>
             <div className="rpt-field-row">
               <div className="rpt-field"><label className="rpt-label">Start Date</label><div className="rpt-value">{intern.startDate}</div></div>
@@ -676,7 +681,10 @@ function ViewReportModal({ intern, onClose }) {
             </div>
             <div className="rpt-field-row">
               <div className="rpt-field"><label className="rpt-label">Company</label><div className="rpt-value">{intern.company}</div></div>
-              <div className="rpt-field"><label className="rpt-label">Training Supervisor</label><div className="rpt-value">{intern.supervisor}</div></div>
+              <div className="rpt-field">
+                <label className="rpt-label">Training Supervisor</label>
+                <div className="rpt-value">{intern.trainingSupervisor}</div>
+              </div>
             </div>
             <div className="rpt-field-row">
               <div className="rpt-field"><label className="rpt-label">Start Date</label><div className="rpt-value">{intern.startDate}</div></div>
